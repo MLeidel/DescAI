@@ -1,0 +1,948 @@
+'''
+descai.py
+    by Michael Leidel
+Mar 2026 intgrated Claude models into GptGUI-2
+
+Disclaimer: This software is provided free of charge and "as is," without any warranties,
+express or implied. The author and contributors assume no responsibility for any damages,
+data loss, or other issues arising from its use. Use at your own risk.
+
+'''
+import os
+import sys
+import time
+import configparser
+import subprocess
+import webbrowser
+import markdown
+import platform
+import json
+import vocvlc
+import urllib.parse
+import anthropic
+from openai import OpenAI
+from tkinter import TclError
+from pathlib import Path
+from tkinter.font import Font
+from tkinter import messagebox
+from tkinter import simpledialog
+from ttkbootstrap import *
+from ttkbootstrap.constants import *
+from ttkbootstrap.tooltip import ToolTip
+from time import localtime, strftime
+
+apptitle = "DescAI 1.0 "
+
+class Application(Frame):
+    ''' main class docstring '''
+    def __init__(self, parent):
+        Frame.__init__(self, parent)
+        self.pack(fill=BOTH, expand=True, padx=4, pady=4)
+        self.Saved = True
+        self.cpath = "conversation.json"
+        self.playback = False
+
+        # get settings from ini file
+        config = configparser.ConfigParser()
+        config.read('options.ini')
+        self.MyTheme    = config['Main']['theme']
+        self.MyPath     = config['Main']['path']
+        self.MyFntQryF  = config['Main']['fontqryfam']
+        self.MyFntQryZ  = config['Main']['fontqrysiz']
+        self.MyFntGptF  = config['Main']['fontgptfam']
+        self.MyFntGptZ  = config['Main']['fontgptsiz']
+        self.MyModel    = config['Main']['engine']
+        self.MyButtons  = config['Main']['btncolor'] + "-outline"
+        self.MyEditor   = config['Main']['editor']
+        self.MyFile     = config['Main']['tempfile']
+        self.MyVoice    = config['Main']['voice']
+        self.MyColor    = config['Main']['color']
+        self.MySystem   = config['Main']['system']
+        self.MyTemper   = config['Main']['temper']
+        self.TOPFRAME   = int(config['Main']['top_frame'])
+        mods = config['Models']['list']
+        self.MyModels = mods.split(',')
+        self.MyModels = [s.strip() for s in self.MyModels]
+
+        self.MyKey = "GPTKEY"  # Claude is hardcoded to CLDKEY
+        self.MyTitle = apptitle + self.MyModel
+
+        self.set_intro()
+        self.create_widgets()
+
+    def create_widgets(self):
+        ''' creates GUI for app '''
+
+        # expand widget to fill the grid
+        self.columnconfigure(1, weight=1, pad=5)
+        self.columnconfigure(2, weight=1, pad=5)
+        self.rowconfigure(1, weight=1, pad=5)
+        self.rowconfigure(2, weight=1, pad=5)
+
+        # Create a vertical PanedWindow to hold both text widgets
+        self.paned = PanedWindow(self, orient=VERTICAL)
+        self.paned.grid(row=1, rowspan=2, column=1, columnspan=2, sticky='nsew')
+
+        # --- Query frame (top pane) ---
+        self.query_frame = Frame(self.paned)
+        self.query = Text(self.query_frame)
+        self.query.pack(side=LEFT, fill=BOTH, expand=True)
+        efont = Font(family=self.MyFntQryF, size=self.MyFntQryZ)
+        self.query.configure(font=efont)
+        self.query.config(wrap="word",
+                          undo=True,
+                          width=50,
+                          height=self.TOPFRAME,
+                          padx=5,
+                          tabs=(efont.measure(' ' * 4),))
+        self.scrolly_query = Scrollbar(self.query_frame, orient=VERTICAL,
+                                        command=self.query.yview)
+        self.scrolly_query.pack(side=RIGHT, fill=Y)
+        self.query['yscrollcommand'] = self.scrolly_query.set
+        self.paned.add(self.query_frame)
+
+        # --- Response frame (bottom pane) ---
+        self.txt_frame = Frame(self.paned)
+        self.txt = Text(self.txt_frame)
+        self.txt.pack(side=LEFT, fill=BOTH, expand=True)
+        efont = Font(family=self.MyFntGptF, size=self.MyFntGptZ)
+        self.txt.configure(font=efont)
+        self.txt.config(wrap="word",
+                        undo=True,
+                        width=50,
+                        height=12,
+                        padx=5,
+                        tabs=(efont.measure(' ' * 4),))
+        self.scrolly_txt = Scrollbar(self.txt_frame, orient=VERTICAL,
+                                      command=self.txt.yview)
+        self.scrolly_txt.pack(side=RIGHT, fill=Y)
+        self.txt['yscrollcommand'] = self.scrolly_txt.set
+        self.paned.add(self.txt_frame)
+
+
+        # BUTTON FRAME
+        btn_frame = Frame(self)
+        btn_frame.grid(row=4, column=1, sticky='w')
+
+        self.new = Button(btn_frame, text='New',
+                            command=self.on_new,
+                            bootstyle=(self.MyButtons))
+        self.new.grid(row=1, column=2, sticky='w',
+                   pady=(5, 0), padx=(5, 7))
+
+        self.view = Button(btn_frame, text='View',
+                            command=self.on_view_file,
+                            bootstyle=(self.MyButtons))
+        self.view.grid(row=1, column=4, sticky='w',
+                   pady=(5, 0))
+
+        self.open = Button(btn_frame, text='Text',
+                            command=self.on_md_open,
+                            bootstyle=(self.MyButtons))
+        self.open.grid(row=1, column=6, sticky='w',
+                     pady=(5, 0), padx=5)
+
+        self.md = Button(btn_frame, text='Html',
+                            command=self.on_md_render,
+                            bootstyle=(self.MyButtons))
+        self.md.grid(row=1, column=7, sticky='w',
+                     pady=(5, 0), padx=(0, 5))
+
+        self.opts = Button(btn_frame, text='Options',
+                            command=self.options,
+                            bootstyle=(self.MyButtons))
+        self.opts.grid(row=1, column=8, sticky='w',
+                   pady=(5, 0), padx=5)
+
+        self.sub = Button(btn_frame,
+                            text='Submit Query',
+                            command=self.on_submit, width=15,
+                            bootstyle=(self.MyButtons))
+        self.sub.grid(row=1, column=9, sticky='w',
+                   pady=(5, 0), padx=(5,5))
+
+        self.vw = IntVar()  # Tooggle Web Search Checkbutton
+        self.web = Checkbutton(btn_frame, variable=self.vw,
+                    text='Web', bootstyle=(self.MyButtons + "-toolbutton"))
+        self.web.grid(row=1, column=10, sticky='w', pady=(5, 0), padx=(5, 5))
+
+        self.vcmbo_model = StringVar()
+        self.cmbo_model = Combobox(btn_frame, textvariable=self.vcmbo_model, width=15, state="readonly")
+        self.cmbo_model['values'] = (self.MyModels)
+        self.cmbo_model.grid(row=1, column=11, sticky='w', pady=(5, 0), padx=(5, 5))
+        self.cmbo_model.bind('<<ComboboxSelected>>', self.onComboSelect)
+
+       # END BUTTON FRAME
+
+        cls = Button(self, text='Close',
+                    command=self.exit_program,
+                    bootstyle=(self.MyButtons))
+        cls.grid(row=4, column=2, columnspan=2, sticky='e',
+                 pady=(5,0), padx=5)
+
+        # Popup menus - for self.query Text widgets
+        self.popup_query = Menu(root, tearoff=0)
+        self.popup_query.add_command(label="Copy",
+                               command=lambda: self.popquery(1))
+        self.popup_query.add_command(label="Paste",
+                               command=lambda: self.popquery(2))
+        self.popup_query.add_separator()
+        self.popup_query.add_command(label="Copy All",
+                                     command=lambda: self.popquery(3))
+        self.popup_query.add_separator()
+        self.popup_query.add_command(label="Larger",
+                                     command=lambda: self.popquery(4))
+        self.popup_query.add_command(label="Smaller",
+                                     command=lambda: self.popquery(5))
+        self.popup_query.add_separator()
+        self.popup_query.add_command(label="Browser",
+                                     command=lambda: self.popquery(6))
+
+        # Popup menus - for self.txt Text widgets
+        self.popup_txt = Menu(tearoff=0)
+        self.popup_txt.add_command(label="Copy",
+                               command=lambda: self.poptxt(1))
+        self.popup_txt.add_command(label="Paste",
+                               command=lambda: self.poptxt(2))
+        self.popup_txt.add_separator()
+        self.popup_txt.add_command(label="Copy All",
+                                     command=lambda: self.poptxt(3))
+
+
+        # Bindings
+        root.bind("<Control-h>", self.on_kb_help)  # show hotkey help
+        root.bind("<Control-q>", self.exit_program)  # Close button
+        root.bind("<Control-g>", self.on_submit)  # Submit Query button
+        root.bind("<Control-Return>", self.on_submit)  # Submit Query button
+        root.bind("<Control-Shift-S>", self.speak_text)  # speak query response
+        root.bind("<Control-f>", self.find_text)
+        root.bind("<Control-n>", self.find_next)
+        root.bind("<Control-j>", self.open_selected_url)  # open selected URL in browser
+        root.bind("<Control-m>", self.show_prompts)  # show the pronpt.md document
+        self.query.bind("<Button-3>", self.do_pop_query)
+        self.txt.bind("<Button-3>", self.do_pop_txt)
+
+        # ToolTips
+        ToolTip(self.new,
+                text="Start new conversation",
+                bootstyle=(INVERSE),
+                wraplength=140)
+        ToolTip(self.view,
+                text="View current log",
+                bootstyle=(INVERSE),
+                wraplength=140)
+        ToolTip(self.sub,
+                text="Ctrl-Enter to Append",
+                bootstyle=(INVERSE),
+                wraplength=140)
+        ToolTip(self.md,
+                text="markdown to browser",
+                bootstyle=(INVERSE),
+                wraplength=140)
+        ToolTip(self.open,
+                text="markdown to text editor",
+                bootstyle=(INVERSE),
+                wraplength=140)
+        ToolTip(self.web,
+                text="Toggle Web Search. N/A for claude.",
+                bootstyle=(INVERSE),
+                wraplength=140)
+
+        self.txt.delete("1.0", END)
+        self.txt.insert("1.0", self.set_intro())
+
+        # Variable to store the current search term and the index of the last found match.
+        self.search_term = None
+        self.last_found_index = "1.0"
+
+        # Create a tag to highlight the search result.
+        self.txt.tag_config("highlight", background="gray", foreground="white")
+
+        self.query.focus_set()
+
+        #
+        # on startup check for conversation.json file
+        #
+
+        self.conversation = self.load_buffer(self.cpath)
+
+        if self.conversation == []:
+            if not self.MyModel.startswith("claude"):
+                self.conversation = [
+                    {"role": "system", "content": self.MySystem}
+                ]
+            if os.path.isfile(self.cpath):
+                os.remove(self.cpath)
+        else:
+            self.on_new()
+
+        self.txt.tag_configure('all_text', foreground=self.MyColor)
+        # use the following line to refresh the txt color when needed
+        self.txt.tag_add('all_text', '1.0', 'end-1c')  # exclude trailing newline
+
+#----------------------------------------------------------------------
+
+    def set_intro(self):
+        intro = f'''
+        Welcome to {apptitle}
+            a GUI desktop AI client for conversing with
+            OpenAI and Claude Large Language Models
+
+        Model: {self.MyModel}
+        role: {self.MySystem}
+        qheight: {self.TOPFRAME}
+        editor: {self.MyEditor}
+        voice: {self.MyVoice}
+        color: {self.MyColor}
+        font1: {self.MyFntQryF}
+        f1 size: {self.MyFntQryZ}
+        font2: {self.MyFntGptF}
+        f2 size: {self.MyFntGptZ}
+
+        A registered OpenAI API key is required
+        and set as a system environment variable
+
+        Use Ctrl-H for list of keyboard commands
+        '''
+        return intro
+
+
+    def display_intro(self):
+        self.txt.delete("1.0", END)
+        self.txt.insert("1.0", self.set_intro())
+        self.txt.tag_add('all_text', '1.0', 'end-1c')
+
+
+    def show_prompts(self, event=None):
+        self.txt.delete("1.0", END)
+        self.txt.insert("1.0", open("prompt.md").read())
+
+
+
+    def on_submit(self, event=None):
+        ''' Event handler for Submit button (Ctrl-G).
+            Handles OpenAI and Claude APIs '''
+
+        query = self.query.get("1.0", END).strip()
+
+        # show prompt.md document
+
+        if query.startswith("prompt"):
+            self.show_prompts()
+            return
+
+        # begin submiting request
+
+        self.txt.delete("1.0", END)
+        self.txt.insert("1.0", "Thinking ..." )
+        self.txt.update_idletasks()
+
+        # 1) add the user message
+        self.conversation.append(
+            {"role": "user", "content": query}
+        )
+
+        # 2) call the chat completion
+        #   Either OpenAI or Claude !
+        if self.MyModel.startswith("claude-haiku"):
+            client = anthropic.Anthropic(
+                api_key=os.environ.get("CLDKEY")
+            )
+
+            try:
+                # Create the message request
+                response = client.messages.create(
+                    model=self.MyModel, # Official ID for Haiku 4.5
+                    max_tokens=2048,
+                    temperature=float(self.MyTemper),  # REMOVE for Sonnet model
+                    system=self.MySystem,
+                    cache_control={"type": "ephemeral"},
+                    messages=self.conversation
+                )
+
+                # Extract response text ONLY for HAIKU model
+                ai_text = response.content[0].text
+
+            except Exception as e:
+                messagebox.showerror("Client Error", str(e))
+                return ""
+
+        elif self.MyModel.startswith("claude-sonnet"):  # Sonnet modle
+            client = anthropic.Anthropic(
+                api_key=os.environ.get("CLDKEY")
+            )
+
+            try:
+                # Create the message request
+                response = client.messages.create(
+                    model=self.MyModel,
+                    max_tokens=4096,
+                    # 'thinking' allows Sonnet to solve harder logic/coding bugs
+                    thinking={
+                        "type": "enabled",
+                        "budget_tokens": 1024
+                    },
+                    cache_control={"type": "ephemeral"},
+                    system=self.MySystem,
+                    messages=self.conversation
+                )
+
+                # Sonnet 4.6 returns content in blocks (Thinking + Text)
+                ai_text = ""
+                for block in response.content:
+                    if block.type == "text":
+                        ai_text += block.text
+                        # messages.append({"role": "assistant", "content": block.text})
+
+            except Exception as e:
+                messagebox.showerror("Client Error", str(e))
+                return ""
+
+        else:
+            # OpenAI models ...
+            if self.vw.get() == 1:  #  requesting web search tool
+                # print("web search")
+                try:
+                    client = OpenAI(api_key=os.environ.get(self.MyKey))
+                    response = client.responses.create(
+                        model=self.MyModel,
+                        tools=[{"type": "web_search"}],
+                        input=self.conversation
+                    )
+                    ai_text = (response.output_text)
+                except Exception as e:
+                    ai_text = e
+            else:
+                # regular OpenAI request
+                ai_text, total, prompt, completion = self.gptCode(self.MyKey,
+                                                                  self.MyModel,
+                                                                  self.conversation)
+        if ai_text == "":
+            self.query.delete("1.0", END)
+            self.display_intro()
+            return
+
+        # 3) add the assistant reply to history
+        self.conversation.append(
+            {"role": "assistant", "content": ai_text}
+        )
+
+        # 4) show it
+        self.txt.delete("1.0", END)
+        self.txt.insert("1.0", ai_text)
+        self.txt.tag_add('all_text', '1.0', 'end-1c')
+
+        # SAVE conversation to disk
+        self.save_buffer(self.conversation, self.cpath)
+
+        # append to log
+        today = strftime("%a %d %b %Y", localtime())
+        tm    = strftime("%H:%M", localtime())
+        with open(self.MyPath, "a", encoding="utf-8") as fout:
+            fout.write("\n\n=== (%s) Chat on %s %s ===\n\n" % (self.MyModel, today, tm,))
+            if self.vw.get() != 1 and not self.MyModel.startswith("claude"):  # if not a web-search
+                fout.write(f"prompt:{prompt}, completion:{completion}, total:{total} \n\n")
+                for msg in self.conversation:
+                    role = msg["role"]
+                    fout.write(f"{role.upper()}:\n{msg['content']}\n\n")
+            else:  # web-search
+                for msg in self.conversation:
+                    role = msg["role"]
+                    fout.write(f"{msg['content']}\n\n")
+
+            fout.write("="*40 + "\n\n")
+
+        # select the input query box
+        # self.query.delete("1.0", END)
+        self.query.tag_add("sel", "1.0", "end-1c")
+        self.query.focus_set()
+
+
+    def gptCode(self, key: str, model: str, messages: str) -> str:
+        """Call the OpenAI ChatCompletion endpoint."""
+        try:
+            client = OpenAI(api_key=os.environ.get(key))
+            resp  = client.chat.completions.create(
+            model = model,
+            messages = messages)
+            content = resp.choices[0].message.content.strip()
+            total_tokens, prompt_tokens, completion_tokens = self.extract_token_counts(resp)
+            # Return as a tuple (content, total, prompt, completion)
+            return content, total_tokens, prompt_tokens, completion_tokens
+        except Exception as e:
+            messagebox.showerror("Client Error", str(e))
+            return ""
+
+    def extract_token_counts(self, resp):
+        """
+        Return (total_tokens, prompt_tokens, completion_tokens)
+        Works for both dict-like and object-like resp.
+        """
+        total_tokens = prompt_tokens = completion_tokens = None
+
+        if isinstance(resp, dict):
+            usage = resp.get('usage', {})
+            total_tokens = usage.get('total_tokens')
+            prompt_tokens = usage.get('prompt_tokens')
+            completion_tokens = usage.get('completion_tokens')
+        else:
+            usage = getattr(resp, 'usage', None)
+            if usage is not None:
+                total_tokens = getattr(usage, 'total_tokens', None)
+                prompt_tokens = getattr(usage, 'prompt_tokens', None)
+                completion_tokens = getattr(usage, 'completion_tokens', None)
+
+        return total_tokens, prompt_tokens, completion_tokens
+
+
+    def onComboSelect(self, e=None):
+        ''' Selecting different AI model '''
+        self.MyModel = self.vcmbo_model.get()
+        self.MyTitle = apptitle + self.MyModel + " *"
+        # update window caption and information
+        root.title(self.MyTitle)
+        self.on_new()
+
+
+    def on_new(self):
+        ''' Event handler for the New button.
+        Optionally starts new conversation
+        A new system prompt may be taken from the prompt
+        area preceeded by the word `prompt` '''
+        root.withdraw()
+        result = messagebox.askokcancel("Chat",
+                                        "Continue previous conversation?")
+        root.deiconify()
+        if result is False:
+            # start new conversation
+            self.conversation.clear()
+            # check for system message change
+            usertext = self.query.get("1.0", END)
+            if usertext.lower().startswith("prompt"):
+                self.MySystem = usertext[7:].strip()
+            # set the system message
+            if self.MyModel.startswith("claude"):
+                self.conversation = []
+            else:
+                self.conversation = [
+                    {"role": "system", "content": self.MySystem}
+                ]
+            if os.path.isfile(self.cpath):
+                os.remove(self.cpath)
+            self.query.delete("1.0", END)
+            self.display_intro()
+        self.query.focus_set()
+
+
+    def load_buffer(self, path):
+        try:
+            with open(self.cpath, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except FileNotFoundError:
+            return []
+        except json.JSONDecodeError:
+            # corrupted file -> start clean
+            return []
+
+    def save_buffer(self, buf, path):
+        with open(self.cpath, "w", encoding="utf-8") as f:
+            json.dump(buf, f, ensure_ascii=False, indent=2)
+
+
+    def on_view_file(self):
+        ''' View the user saved queries file. '''
+        if not os.path.isfile(self.MyPath):
+            messagebox.showwarning(self.MyPath, "Empty - No File to view")
+            return
+        self.txt.delete("1.0", END)
+        with open(self.MyPath, "r", encoding="utf-8") as fin:
+            self.txt.insert("1.0", fin.read())
+        self.txt.see(END)
+        self.query.delete("1.0", END)
+
+
+
+    def reLaunch(self):
+        ''' close and re-open this instance '''
+        wx.MessageBox('App will now close and re-open...')
+        python = sys.executable
+        #self.Destroy()
+        self.on_close(None)
+        os.execl(python, python, *sys.argv)
+
+    def openEditor(self):
+        ''' Open text editor to alter options.ini '''
+        global opts
+        p = subprocess.Popen([opts[5], 'options.ini'])
+        p.wait()  # wait until editor closes
+        self.reLaunch()
+
+
+
+    def options(self, e=None):
+        ''' Launch Options program and exit this program '''
+        if platform.system() == "Windows":
+            subprocess.call(["pythonw.exe", "options.py"])
+        else:
+            subprocess.call(["python3", "options.py"])
+        # re-read configuration
+        config = configparser.ConfigParser()
+        config.read('options.ini')
+        self.MyTheme = config['Main']['theme']
+        self.MyPath  = config['Main']['path']
+        self.MyFntQryF = config['Main']['fontqryfam']
+        self.MyFntQryZ = config['Main']['fontqrysiz']
+        self.MyFntGptF = config['Main']['fontgptfam']
+        self.MyFntGptZ = config['Main']['fontgptsiz']
+        self.MyModel   = config['Main']['engine']
+        self.MyButtons = config['Main']['btncolor']
+        self.MyEditor = config['Main']['editor']
+        self.MyFile   = config['Main']['tempfile']
+        self.MyVoice  = config['Main']['voice']
+        self.MyColor  = config['Main']['color']
+        self.MySystem = config['Main']['system']
+        self.TOPFRAME = int(config['Main']['top_frame'])
+        # if len(self.MyKey) < 16:
+        #     self.MyKey = os.environ.get(self.MyKey)  # Using ENV var instead of actual key string.
+        # re-set the items and change font/size
+        efont = Font(family=self.MyFntQryF, size=self.MyFntQryZ)
+        self.query.configure(font=efont, height=self.TOPFRAME)
+        efont = Font(family=self.MyFntGptF, size=self.MyFntGptZ)
+        self.txt.configure(font=efont)
+        style = Style()
+        style = Style(theme=self.MyTheme)
+        self.MyTitle = apptitle + self.MyModel
+        root.title(self.MyTitle)
+        self.txt.delete("1.0", END)
+        self.txt.insert("1.0", self.set_intro())
+        self.txt.tag_configure('all_text', foreground=self.MyColor)
+        # use the following line to refresh the txt color when needed
+        self.txt.tag_add('all_text', '1.0', 'end-1c')  # exclude trailing newline
+
+
+    def getmdtext(self):
+        ''' get all or selected text '''
+        if self.txt.tag_ranges("sel"):
+            text = self.txt.selection_get()
+        else:  # Select All
+            self.txt.focus()
+            self.txt.tag_add(SEL, '1.0', END)
+            self.txt.mark_set(INSERT, '1.0')
+            self.txt.see(INSERT)
+            if self.txt.tag_ranges("sel"):
+                text = self.txt.selection_get()
+                self.txt.tag_remove(SEL, "1.0", END)
+        return text
+
+
+    def on_md_open(self, e=None):
+        ''' open txt (MD) in your text editor '''
+        text = self.getmdtext()
+        filename = os.getcwd() + '/' + self.MyFile
+        with open(filename, 'w') as f:
+            f.write(text)
+        print(self.MyEditor, filename)
+        # subprocess.Popen([self.MyEditor, filename])
+        os.system(self.MyEditor + " " + filename)
+
+
+    def on_md_render(self, e=None):
+        ''' render txt (MD) to html and show window '''
+        text = self.getmdtext()
+        # convert MD to HTML
+        H = markdown.markdown(text,
+                              extensions=['tables','fenced_code'])
+        # write to file
+        html_path = Path(__file__).resolve().parent / f"{self.MyFile}.html"  # script's directory + file
+        with open(html_path, 'w') as f:
+            f.write(H)
+        webbrowser.open_new_tab(html_path.as_uri())  # opens in default browser
+
+
+
+    def speak_text(self, e=None):
+        ''' Speak the query response text
+            key, voc, ins, fou, inp
+        '''
+        self.MyTitle = apptitle + self.MyModel + " <<Voice Generation>>"
+        root.title(self.MyTitle)
+        self.txt.update_idletasks()
+        text = self.getmdtext()  # get selected or all text
+        filename = self.get_unique_filename()
+        x = vocvlc.textospeech(self.MyKey, self.MyVoice, 'normal', filename, text)
+        if x != 0:
+            messagebox.showerror("vocvlc Error", "There is a problem with the voice file")
+        else:
+            p = self.MyTitle.find(" <<V")
+            self.MyTitle = self.MyTitle[:p]
+            root.title(self.MyTitle)
+            self.txt.update_idletasks()
+
+
+    def get_unique_filename(self, directory: str = ".",
+                            base_name: str = "speech", extension: str = "mp3") -> str:
+        '''
+        Generate a unique filename in the format: speech_N.ext
+
+        Args:
+            directory: Directory where files will be stored (default: current directory)
+            base_name: Base name for the file (default: "speech")
+            extension: File extension without dot (default: "mp3")
+
+        Returns:
+            A unique filename string
+        '''
+        counter = 1
+        while True:
+            filename = f"{base_name}_{counter}.{extension}"
+            filepath = os.path.join(directory, filename)
+            if not os.path.exists(filepath):
+                return filename
+            counter += 1
+
+
+    def on_kb_help(self, e=None):
+        ''' display hot keys message '''
+        msg = '''
+<Ctrl-h> HotKeys help
+<Ctrl-g> Submit Query
+<Ctrl-Return> Submit Query
+<Ctrl-q> Exit Program
+<Ctrl-Shift-S> Speak the Text
+<Ctrl-f> Find Text
+<Ctrl-n> Find Next Text
+<Ctrl-j> Open Selected URL
+<Ctrl-m> Show prompt help
+        '''
+        messagebox.showinfo("Hot Keys Help", msg)
+
+
+    def do_pop_query(self, event):
+        ''' handles right-click for context menu '''
+        popup = tk.Toplevel(root)
+        popup.wm_overrideredirect(True)  # no window decorations
+        popup.attributes("-topmost", True)
+        popup.geometry("+%d+%d" % (event.x_root, event.y_root))
+
+        frame = tk.Frame(popup, bd=0)
+        frame.pack()
+
+        items = [
+            ("Copy", lambda: (popup.destroy(), self.popquery(1))),
+            ("Paste", lambda: (popup.destroy(), self.popquery(2))),
+            ("Copy All", lambda: (popup.destroy(), self.popquery(3))),
+            ("Larger", lambda: (popup.destroy(), self.popquery(4))),
+            ("Smaller", lambda: (popup.destroy(), self.popquery(5))),
+            ("Close", lambda: (popup.destroy())),
+        ]
+
+        for text, cmd in items:
+            b = tk.Button(frame, text=text, anchor="w", command=lambda c=cmd: (popup.destroy(), c()))
+            b.pack(fill="x", padx=8, pady=4)  # padding around each item
+
+
+    def do_pop_txt(self, event):
+        ''' handles right-click for txt menu '''
+        popup = tk.Toplevel(root)
+        popup.wm_overrideredirect(True)  # no window decorations
+        popup.attributes("-topmost", True)
+        popup.geometry("+%d+%d" % (event.x_root, event.y_root))
+
+        frame = tk.Frame(popup, bd=0)
+        frame.pack()
+
+        items = [
+            ("Copy", lambda: (popup.destroy(), self.poptxt(1))),
+            ("Paste", lambda: (popup.destroy(), self.poptxt(2))),
+            ("Copy All", lambda: (popup.destroy(), self.poptxt(3))),
+            ("Google Text", lambda: (popup.destroy(), self.poptxt(4))),
+            ("Find Text", lambda: (popup.destroy(), self.poptxt(5))),
+            ("KB Help", lambda: (popup.destroy(), self.poptxt(6))),
+            ("Open URL", lambda: (popup.destroy(), self.poptxt(7))),
+            ("Close", lambda: (popup.destroy())),
+        ]
+
+        for text, cmd in items:
+            b = tk.Button(frame, text=text, anchor="w", command=lambda c=cmd: (popup.destroy(), c()))
+            b.pack(fill="x", padx=8, pady=4)  # padding around each item
+
+    def popquery(self, n):
+        ''' Routes query context menu actions '''
+        if n == 1:  # Copy
+            root.clipboard_clear()  # clear clipboard contents
+            if self.query.tag_ranges("sel"):
+                root.clipboard_append(self.query.selection_get())  # append new value to clipbaord
+        elif n == 2:  # Paste
+            inx = self.query.index(INSERT)
+            try:
+                self.query.insert(inx, root.clipboard_get())
+            except Exception as e:
+                return
+        elif n == 3:  # Copy All
+            self.query.focus()
+            self.query.tag_add(SEL, '1.0', END)
+            self.query.mark_set(INSERT, '1.0')
+            self.query.see(INSERT)
+            root.clipboard_clear()  # clear clipboard contents
+            if self.query.tag_ranges("sel"):  # append new value to clipbaord
+                root.clipboard_append(self.query.selection_get())
+                self.query.tag_remove(SEL, "1.0", END)
+        elif n == 4:  # larger
+            self.TOPFRAME += 2
+            self.query.config(height=self.TOPFRAME)
+        elif n == 5:  # smaller
+            if self.TOPFRAME > 3:
+                self.TOPFRAME -= 2
+                self.query.config(height=self.TOPFRAME)
+
+
+    def poptxt(self, n):
+        ''' Routes txt context menu actions '''
+        if n == 1:  # Copy
+            root.clipboard_clear()  # clear clipboard contents
+            root.clipboard_append(self.txt.selection_get())  # append new value to clipbaord
+        elif n == 2:  # Paste
+            inx = self.txt.index(INSERT)
+            self.txt.insert(inx, root.clipboard_get())
+        elif n == 3:  # Select All
+            self.txt.focus()
+            self.txt.tag_add(SEL, '1.0', END)
+            self.txt.mark_set(INSERT, '1.0')
+            self.txt.see(INSERT)
+            root.clipboard_clear()  # clear clipboard contents
+            if self.txt.tag_ranges("sel"):  # append new value to clipbaord
+                root.clipboard_append(self.txt.selection_get())
+                self.txt.tag_remove(SEL, "1.0", END)
+        elif n == 4:   # search for selected text using browser
+            search = self.txt.selection_get()
+            if len(search) > 2:
+                webbrowser.open("https://www.google.com/search?q=" + search)
+        elif n == 5:  # find text in the response window
+            self.find_text()
+        elif n == 6:  # keyboard help
+            self.on_kb_help()
+        elif n == 7:  # open browser with selected URL
+            self.open_selected_url()
+
+
+    def find_text(self, event=None):
+        ''' Ask the user for the text to search
+            then find and highlight the text if found.'''
+        term = simpledialog.askstring("Find", "Enter text to search:")
+        if term:
+            self.search_term = term
+            # Remove any previous highlights.
+            self.txt.tag_remove("highlight", "1.0", tk.END)
+            # Start searching from the beginning.
+            self.last_found_index = "1.0"
+            pos = self.txt.search(self.search_term, self.last_found_index, stopindex=tk.END)
+            if pos:
+                # Highlight the found text.
+                end_pos = f"{pos}+{len(self.search_term)}c"
+                self.txt.tag_add("highlight", pos, end_pos)
+                # Adjust the view to make the found text visible.
+                self.txt.see(pos)
+                # Store the ending position for finding the next match.
+                self.last_found_index = end_pos
+            else:
+                messagebox.showinfo("Result", "No matches found.")
+        return "break"  # Prevent the default behavior.
+
+
+    def find_next(self, event=None):
+        ''' Search for next occurrence of text in response text area (self.txt) '''
+        if not self.search_term:
+            return self.find_text()
+
+        pos = self.txt.search(self.search_term, self.last_found_index, stopindex=tk.END)
+        if pos:
+            # Remove previous highlights so only the current match is highlighted.
+            self.txt.tag_remove("highlight", "1.0", tk.END)
+            end_pos = f"{pos}+{len(self.search_term)}c"
+            self.txt.tag_add("highlight", pos, end_pos)
+            self.txt.see(pos)
+            # Update the last found index.
+            self.last_found_index = end_pos
+        else:
+            messagebox.showinfo("Result", "No more matches found.")
+            self.txt.tag_remove("highlight", "1.0", tk.END)
+        return "break"  # Prevent the default behavior.
+
+
+    def is_url(self, s: str) -> bool:
+        s = s.strip()
+        if not s:
+            return False
+        try:
+            p = urllib.parse.urlparse(s)
+            return p.scheme in ('http', 'https', 'ftp', 'ftps') and bool(p.netloc)
+        except Exception:
+            return False
+
+    def open_selected_url(self, e=None):
+        try:
+            sel = self.txt.get("sel.first", "sel.last")
+        except TclError:
+            # No selection
+            return
+        if self.is_url(sel):
+            webbrowser.open(sel)
+
+
+    def exit_program(self, e=None):
+        ''' Only exit program without prompt if
+            1. Ctrl-q was hit
+            OR
+            2. Both Text frames are empty '''
+        resp = self.txt.get("1.0", END).strip()
+        qury = self.query.get("1.0", END).strip()
+        if resp == "" and qury == "":
+            save_location()
+            sys.exit()
+        if e is None:  # ctrl-q avoids this message
+            if messagebox.askokcancel('GptGUI',
+                                      'Confirm Exit app?') is False:
+                return
+        save_location()
+
+#------------------------------------------------------------
+
+# SAVE GEOMETRY INFO AND EXIT
+def save_location(e=None):
+    ''' executes at WM_DELETE_WINDOW event - see below
+        Also called from self.exit_program.
+        Save window geometry before destruction
+    '''
+    with open("winfo", "w") as fout:
+        fout.write(root.geometry())
+    root.destroy()
+
+# get options that go into the window creation and title
+config = configparser.ConfigParser()
+config.read('options.ini')
+MyTheme = config['Main']['theme']
+MyModel = config['Main']['engine']
+
+# define main window
+MyTitle = apptitle + MyModel
+root = Window(MyTitle, MyTheme, iconphoto="icon.png")
+
+# change working directory to path for this file
+p = os.path.realpath(__file__)
+os.chdir(os.path.dirname(p))
+
+# ACCESS GEOMETRY INFO
+if os.path.isfile("winfo"):
+    with open("winfo") as f:
+        lcoor = f.read()
+    root.geometry(lcoor.strip())
+else:
+    root.geometry("675x505") # WxH+left+top
+
+root.protocol("WM_DELETE_WINDOW", save_location)  # TO SAVE GEOMETRY INFO
+root.minsize(790, 325)  # width, height
+Sizegrip(root).place(rely=1.0, relx=1.0, x=0, y=0, anchor='se')
+
+Application(root)
+
+root.mainloop()
