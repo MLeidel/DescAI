@@ -221,6 +221,7 @@ class Application(Frame):
         root.bind("<Control-g>", self.on_submit)  # Submit Query button
         root.bind("<Control-Return>", self.on_submit)  # Submit Query button
         root.bind("<Control-Shift-S>", self.speak_text)  # speak query response
+        root.bind("<Control-Shift-D>", self.delete_log)
         root.bind("<Control-f>", self.find_text)
         root.bind("<Control-n>", self.find_next)
         root.bind("<Control-j>", self.open_selected_url)  # open selected URL in browser
@@ -402,11 +403,44 @@ class Application(Frame):
                 for block in response.content:
                     if block.type == "text":
                         ai_text += block.text
-                        # messages.append({"role": "assistant", "content": block.text})
 
             except Exception as e:
                 messagebox.showerror("Client Error", str(e))
                 return ""
+
+        ### Opus ###
+
+        elif self.MyModel.startswith("claude-opus"):  # Opus modle
+            client = anthropic.Anthropic(
+                api_key=os.environ.get("CLDKEY")
+            )
+
+            try:
+                response = client.messages.create(
+                    model=self.MyModel,
+                    max_tokens=8192,
+                    # 'thinking' allows Sonnet to solve harder logic/coding bugs
+                    thinking={
+                        "type": "adaptive",
+                    },
+                    output_config={
+                        "effort": "medium"
+                    },
+                    cache_control={"type": "ephemeral"},
+                    system=self.MySystem,
+                    messages=self.conversation
+                )
+
+                ai_text = ""
+                for block in response.content:
+                    if block.type == "text":
+                        ai_text += block.text
+
+            except Exception as e:
+                messagebox.showerror("Client Error", str(e))
+                return ""
+
+        ### OpenAI ###
 
         else:
             # OpenAI models ...
@@ -424,9 +458,16 @@ class Application(Frame):
                     ai_text = e
             else:
                 # regular OpenAI request
-                ai_text, total, prompt, completion = self.gptCode(self.MyKey,
-                                                                  self.MyModel,
-                                                                  self.conversation)
+                try:
+                    client = OpenAI(api_key=os.environ.get(self.MyKey))
+                    resp  = client.chat.completions.create(
+                    model = self.MyModel,
+                    messages = self.conversation)
+                    content = resp.choices[0].message.content.strip()
+                    ai_text = content
+                except Exception as e:
+                    ai_text = e
+
         if ai_text == "":
             self.query.delete("1.0", END)
             self.display_intro()
@@ -445,65 +486,48 @@ class Application(Frame):
         # SAVE conversation to disk
         self.save_buffer(self.conversation, self.cpath)
 
-        # append to log
+        ### append to log ###
+
         today = strftime("%a %d %b %Y", localtime())
         tm    = strftime("%H:%M", localtime())
+        atk   = self.get_aprox_tokens(ai_text)
         with open(self.MyPath, "a", encoding="utf-8") as fout:
-            fout.write("\n\n=== (%s) Chat on %s %s ===\n\n" % (self.MyModel, today, tm,))
-            if self.vw.get() != 1 and not self.MyModel.startswith("claude"):  # if not a web-search
-                fout.write(f"prompt:{prompt}, completion:{completion}, total:{total} \n\n")
-                for msg in self.conversation:
-                    role = msg["role"]
-                    fout.write(f"{role.upper()}:\n{msg['content']}\n\n")
-            else:  # web-search
-                for msg in self.conversation:
-                    role = msg["role"]
-                    fout.write(f"{msg['content']}\n\n")
-
-            fout.write("="*40 + "\n\n")
-
+            fout.write("\n\n=== (%s) Chat on %s %s ===\n\n" % (self.MyModel, today, tm))
+            fout.write(query + "\n\n+++ assistant +++\n\n")
+            fout.write(ai_text + "\n")
+            fout.write(f"=== Aprox Tokens: {atk} ===" + "\n\n")
         # select the input query box
-        # self.query.delete("1.0", END)
         self.query.tag_add("sel", "1.0", "end-1c")
         self.query.focus_set()
 
 
-    def gptCode(self, key: str, model: str, messages: str) -> str:
-        ''' Processes the OpenAI ChatCompletion endpoint. '''
-        try:
-            client = OpenAI(api_key=os.environ.get(key))
-            resp  = client.chat.completions.create(
-            model = model,
-            messages = messages)
-            content = resp.choices[0].message.content.strip()
-            total_tokens, prompt_tokens, completion_tokens = self.extract_token_counts(resp)
-            # Return as a tuple (content, total, prompt, completion)
-            return content, total_tokens, prompt_tokens, completion_tokens
-        except Exception as e:
-            messagebox.showerror("Client Error", str(e))
-            return ""
+    def get_aprox_tokens(self, text) -> int:
+        ''' Calculates aproximate/average tokens from text '''
+        words = text.split()
+        avtok = len(words) / 1.35
+        return int(avtok)
 
-    def extract_token_counts(self, resp):
-        ''' Return (total_tokens, prompt_tokens, completion_tokens)
-        Works for both dict-like and object-like resp.
-        This only used for the OpenAI API (without 'Web Search')
-        '''
-        total_tokens = prompt_tokens = completion_tokens = None
 
-        if isinstance(resp, dict):
-            usage = resp.get('usage', {})
-            total_tokens = usage.get('total_tokens')
-            prompt_tokens = usage.get('prompt_tokens')
-            completion_tokens = usage.get('completion_tokens')
+    def new_conversation(self):
+        ''' start new conversation '''
+        self.conversation.clear()
+        # check for system message change
+        usertext = self.query.get("1.0", END)
+        if usertext.lower().startswith("prompt"):
+            self.MySystem = usertext[7:].strip()
+        # set the system message
+        if self.MyModel.startswith("claude"):
+            self.conversation = []
         else:
-            usage = getattr(resp, 'usage', None)
-            if usage is not None:
-                total_tokens = getattr(usage, 'total_tokens', None)
-                prompt_tokens = getattr(usage, 'prompt_tokens', None)
-                completion_tokens = getattr(usage, 'completion_tokens', None)
-
-        return total_tokens, prompt_tokens, completion_tokens
-
+            self.conversation = [
+                {"role": "system", "content": self.MySystem}
+            ]
+        if os.path.isfile(self.cpath):
+            os.remove(self.cpath)
+        self.query.delete("1.0", END)
+        self.display_intro()
+        messagebox.showinfo("Note", "Conversation Reset")
+        self.query.focus_set()
 
     def onComboSelect(self, e=None):
         ''' Selecting different AI model '''
@@ -511,8 +535,7 @@ class Application(Frame):
         self.MyTitle = apptitle + self.MyModel + " *"
         # update window caption and information
         root.title(self.MyTitle)
-        self.on_new()
-
+        self.new_conversation()  # Note: cannot continue current conversation when switching models.
 
     def on_new(self):
         ''' Event handler for the New button.
@@ -521,26 +544,11 @@ class Application(Frame):
         area preceeded by the word `prompt` '''
         root.withdraw()
         result = messagebox.askokcancel("Chat",
-                                        "Continue previous conversation?")
+                                        "Start New Conversation?")
         root.deiconify()
-        if result is False:
+        if result is True:
             # start new conversation
-            self.conversation.clear()
-            # check for system message change
-            usertext = self.query.get("1.0", END)
-            if usertext.lower().startswith("prompt"):
-                self.MySystem = usertext[7:].strip()
-            # set the system message
-            if self.MyModel.startswith("claude"):
-                self.conversation = []
-            else:
-                self.conversation = [
-                    {"role": "system", "content": self.MySystem}
-                ]
-            if os.path.isfile(self.cpath):
-                os.remove(self.cpath)
-            self.query.delete("1.0", END)
-            self.display_intro()
+            self.new_conversation()
         self.query.focus_set()
 
 
@@ -707,15 +715,16 @@ class Application(Frame):
     def on_kb_help(self, e=None):
         ''' display hot keys message '''
         msg = '''
-<Ctrl-h> HotKeys help
-<Ctrl-g> Submit Query
-<Ctrl-Return> Submit Query
-<Ctrl-q> Exit Program
-<Ctrl-Shift-S> Speak the Text
-<Ctrl-f> Find Text
-<Ctrl-n> Find Next Text
-<Ctrl-j> Open Selected URL
-<Ctrl-m> Show prompt help
+Ctrl-Shift-D > Delete Log
+Ctrl-Shift-S > Speak the Text
+Ctrl-Return > Submit Query
+Ctrl-G > Submit Query
+Ctrl-H > HotKeys help
+Ctrl-F > Find Text
+Ctrl-N > Find Next Text
+Ctrl-J > Open Selected URL
+Ctrl-Q > Exit Program
+Ctrl-m > Show prompt help
         '''
         messagebox.showinfo("Hot Keys Help", msg)
 
@@ -890,6 +899,16 @@ class Application(Frame):
             return
         if self.is_url(sel):
             webbrowser.open(sel)
+
+
+    def delete_log(self, e=None):
+        ''' User request to remove the log file '''
+        result = messagebox.askokcancel("Log File",
+                                        f"Delete {self.MyPath} ?")
+        if result is True:
+            os.remove(self.MyPath)
+            messagebox.showinfo("Log File",
+                                f"{self.MyPath} Removed.")
 
 
     def exit_program(self, e=None):

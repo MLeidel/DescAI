@@ -215,3 +215,5 @@ bkup_*
 winfo
 *.zip
 test
+conversation.json
+log.md
