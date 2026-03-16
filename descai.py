@@ -12,15 +12,13 @@ import os
 import sys
 import time
 import configparser
+import urllib.parse
 import subprocess
 import webbrowser
-import markdown
 import platform
 import json
-import vocvlc
-import urllib.parse
-import anthropic
-from openai import OpenAI
+from time import localtime, strftime
+import markdown
 from tkinter import TclError
 from pathlib import Path
 from tkinter.font import Font
@@ -29,7 +27,9 @@ from tkinter import simpledialog
 from ttkbootstrap import *
 from ttkbootstrap.constants import *
 from ttkbootstrap.tooltip import ToolTip
-from time import localtime, strftime
+from openai import OpenAI
+import vocvlc
+import anthropic
 
 apptitle = "DescAI 1.0 "
 
@@ -132,38 +132,38 @@ class Application(Frame):
 
         self.new = Button(btn_frame, text='New',
                             command=self.on_new,
-                            bootstyle=(self.MyButtons))
+                            bootstyle=self.MyButtons)
         self.new.grid(row=1, column=2, sticky='w',
                    pady=(5, 0), padx=(5, 7))
 
         self.view = Button(btn_frame, text='View',
                             command=self.on_view_file,
-                            bootstyle=(self.MyButtons))
+                            bootstyle=self.MyButtons)
         self.view.grid(row=1, column=4, sticky='w',
                    pady=(5, 0))
 
         self.open = Button(btn_frame, text='Text',
                             command=self.on_md_open,
-                            bootstyle=(self.MyButtons))
+                            bootstyle=self.MyButtons)
         self.open.grid(row=1, column=6, sticky='w',
                      pady=(5, 0), padx=5)
 
         self.md = Button(btn_frame, text='Html',
                             command=self.on_md_render,
-                            bootstyle=(self.MyButtons))
+                            bootstyle=self.MyButtons)
         self.md.grid(row=1, column=7, sticky='w',
                      pady=(5, 0), padx=(0, 5))
 
         self.opts = Button(btn_frame, text='Options',
                             command=self.options,
-                            bootstyle=(self.MyButtons))
+                            bootstyle=self.MyButtons)
         self.opts.grid(row=1, column=8, sticky='w',
                    pady=(5, 0), padx=5)
 
         self.sub = Button(btn_frame,
                             text='Submit Query',
                             command=self.on_submit, width=15,
-                            bootstyle=(self.MyButtons))
+                            bootstyle=self.MyButtons)
         self.sub.grid(row=1, column=9, sticky='w',
                    pady=(5, 0), padx=(5,5))
 
@@ -174,7 +174,7 @@ class Application(Frame):
 
         self.vcmbo_model = StringVar()
         self.cmbo_model = Combobox(btn_frame, textvariable=self.vcmbo_model, width=15, state="readonly")
-        self.cmbo_model['values'] = (self.MyModels)
+        self.cmbo_model['values'] = self.MyModels
         self.cmbo_model.grid(row=1, column=11, sticky='w', pady=(5, 0), padx=(5, 5))
         self.cmbo_model.bind('<<ComboboxSelected>>', self.onComboSelect)
 
@@ -182,7 +182,7 @@ class Application(Frame):
 
         cls = Button(self, text='Close',
                     command=self.exit_program,
-                    bootstyle=(self.MyButtons))
+                    bootstyle=self.MyButtons)
         cls.grid(row=4, column=2, columnspan=2, sticky='e',
                  pady=(5,0), padx=5)
 
@@ -225,7 +225,6 @@ class Application(Frame):
         root.bind("<Control-f>", self.find_text)
         root.bind("<Control-n>", self.find_next)
         root.bind("<Control-j>", self.open_selected_url)  # open selected URL in browser
-        root.bind("<Control-m>", self.show_prompts)  # show the pronpt.md document
         self.query.bind("<Button-3>", self.do_pop_query)
         self.txt.bind("<Button-3>", self.do_pop_txt)
 
@@ -324,10 +323,14 @@ class Application(Frame):
         self.txt.tag_add('all_text', '1.0', 'end-1c')
 
 
-    def show_prompts(self, event=None):
-        ''' Open and display the prompts.md text file. '''
-        self.txt.delete("1.0", END)
-        self.txt.insert("1.0", open("prompt.md").read())
+    def show_prompts(self, fword: str):
+        ''' Open and display the prompt text file. '''
+        self.query.delete("1.0", END)
+        prmt = f"prompts/{fword}.md"
+        try:
+            self.query.insert("1.0", open(prmt).read())
+        except Exception as e:
+            messagebox.showerror("Prompt File", f"{prmt} not found.")
 
 
     def on_submit(self, event=None):
@@ -339,7 +342,8 @@ class Application(Frame):
         # show prompt.md document
 
         if query.startswith("prompt"):
-            self.show_prompts()
+            fword = query.split()
+            self.show_prompts(fword[0])
             return
 
         # begin submiting request
@@ -453,7 +457,7 @@ class Application(Frame):
                         tools=[{"type": "web_search"}],
                         input=self.conversation
                     )
-                    ai_text = (response.output_text)
+                    ai_text = response.output_text
                 except Exception as e:
                     ai_text = e
             else:
@@ -724,7 +728,6 @@ Ctrl-F > Find Text
 Ctrl-N > Find Next Text
 Ctrl-J > Open Selected URL
 Ctrl-Q > Exit Program
-Ctrl-m > Show prompt help
         '''
         messagebox.showinfo("Hot Keys Help", msg)
 
