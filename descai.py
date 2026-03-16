@@ -34,7 +34,13 @@ from time import localtime, strftime
 apptitle = "DescAI 1.0 "
 
 class Application(Frame):
-    ''' main class docstring '''
+    ''' This tkinter GUI app provides a flexible dual vertical pane
+        main window with command buttons at the bottom. Other commands
+        are available via hot keys. AI prompts go in the top pane
+        and the AI responses go in the bottom pane.
+
+        Currently the API code supports most OpenAI and Claude LLM's.
+    '''
     def __init__(self, parent):
         Frame.__init__(self, parent)
         self.pack(fill=BOTH, expand=True, padx=4, pady=4)
@@ -262,8 +268,8 @@ class Application(Frame):
 
         #
         # on startup check for conversation.json file
+        # The user may have the option to continue the converstation or start fresh.
         #
-
         self.conversation = self.load_buffer(self.cpath)
 
         if self.conversation == []:
@@ -283,6 +289,9 @@ class Application(Frame):
 #----------------------------------------------------------------------
 
     def set_intro(self):
+        ''' A "start" screen providing some information about
+            the current settings of the app.
+        '''
         intro = f'''
         Welcome to {apptitle}
             a GUI desktop AI client for conversing with
@@ -299,8 +308,9 @@ class Application(Frame):
         font2: {self.MyFntGptF}
         f2 size: {self.MyFntGptZ}
 
-        A registered OpenAI API key is required
-        and set as a system environment variable
+        Registered OpenAI and Claude API keys are required
+        and set as to system environment variables:
+        GPTKEY and CLDKEY.
 
         Use Ctrl-H for list of keyboard commands
         '''
@@ -314,9 +324,9 @@ class Application(Frame):
 
 
     def show_prompts(self, event=None):
+        ''' Open and display the prompts.md text file. '''
         self.txt.delete("1.0", END)
         self.txt.insert("1.0", open("prompt.md").read())
-
 
 
     def on_submit(self, event=None):
@@ -459,7 +469,7 @@ class Application(Frame):
 
 
     def gptCode(self, key: str, model: str, messages: str) -> str:
-        """Call the OpenAI ChatCompletion endpoint."""
+        ''' Processes the OpenAI ChatCompletion endpoint. '''
         try:
             client = OpenAI(api_key=os.environ.get(key))
             resp  = client.chat.completions.create(
@@ -474,10 +484,10 @@ class Application(Frame):
             return ""
 
     def extract_token_counts(self, resp):
-        """
-        Return (total_tokens, prompt_tokens, completion_tokens)
+        ''' Return (total_tokens, prompt_tokens, completion_tokens)
         Works for both dict-like and object-like resp.
-        """
+        This only used for the OpenAI API (without 'Web Search')
+        '''
         total_tokens = prompt_tokens = completion_tokens = None
 
         if isinstance(resp, dict):
@@ -535,6 +545,7 @@ class Application(Frame):
 
 
     def load_buffer(self, path):
+        ''' Used only for OpenAI and only serves to verify the JSON '''
         try:
             with open(self.cpath, "r", encoding="utf-8") as f:
                 return json.load(f)
@@ -550,7 +561,7 @@ class Application(Frame):
 
 
     def on_view_file(self):
-        ''' View the user saved queries file. '''
+        ''' View the user saved queries "log" file. '''
         if not os.path.isfile(self.MyPath):
             messagebox.showwarning(self.MyPath, "Empty - No File to view")
             return
@@ -569,14 +580,6 @@ class Application(Frame):
         #self.Destroy()
         self.on_close(None)
         os.execl(python, python, *sys.argv)
-
-    def openEditor(self):
-        ''' Open text editor to alter options.ini '''
-        global opts
-        p = subprocess.Popen([opts[5], 'options.ini'])
-        p.wait()  # wait until editor closes
-        self.reLaunch()
-
 
 
     def options(self, e=None):
