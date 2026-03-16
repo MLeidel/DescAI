@@ -119,6 +119,7 @@ preserved anywhere, but will remain in the log until it is purged.
 | :--- | :--- |
 |__Ctrl-H__| This HotKey help|
 |__Ctrl-Q__| Close Program No Prompt|
+|__Ctrl-Shift-D__| Delete Log File|
 |__Ctrl-Shift-S__| Speak the Currrent Text|
 |__Ctrl-G__| Submit Query (Button)|
 |__Ctrl-Enter__ | Submit Query (Button)|
