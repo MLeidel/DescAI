@@ -126,10 +126,11 @@ preserved anywhere, but will remain in the log until it is purged.
 |__Ctrl-F__| Find text |
 |__Ctrl-N__| Find next text |
 |__Ctrl-J__| Open Selected URL |
-|__Ctrl-M__| Show prompt.md (prompt examples)|
 
-Submiting the word "prompt" also shows a prompt.md document.  
-You can easily modify prompt.md with a text editor.
+
+The `prompts` directory is for storing custom prompt text.
+Prompt files must begin with "prompt" and be followed by non-space characters, like `prompt1` or `promptX`.
+You can easily edit your prompt?.md files with a text editor.
 
 ----
 
