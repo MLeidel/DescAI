@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 '''
 descai.py
     by Michael Leidel
@@ -20,6 +22,7 @@ import json
 from time import localtime, strftime
 import markdown
 from tkinter import TclError
+from tkinter import Listbox
 from pathlib import Path
 from tkinter.font import Font
 from tkinter import messagebox
@@ -216,6 +219,9 @@ class Application(Frame):
 
 
         # Bindings
+
+        root.bind("<Control-r>", lambda event: self.query.delete('1.0', 'end'))
+        root.bind("<Alt-p>", self.create_window)
         root.bind("<Control-h>", self.on_kb_help)  # show hotkey help
         root.bind("<Control-q>", self.exit_program)  # Close button
         root.bind("<Control-g>", self.on_submit)  # Submit Query button
@@ -313,6 +319,9 @@ class Application(Frame):
         GPTKEY and CLDKEY.
 
         Use Ctrl-H for list of keyboard commands
+
+        https://auth.openai.com/log-in
+        https://platform.claude.com/dashboard
         '''
         return intro
 
@@ -674,7 +683,6 @@ class Application(Frame):
         webbrowser.open_new_tab(html_path.as_uri())  # opens in default browser
 
 
-
     def speak_text(self, e=None):
         ''' Speak the query response text
             key, voc, ins, fou, inp
@@ -684,6 +692,7 @@ class Application(Frame):
         self.txt.update_idletasks()
         text = self.getmdtext()  # get selected or all text
         filename = self.get_unique_filename()
+        filename = "speech/" + filename
         x = vocvlc.textospeech(self.MyKey, self.MyVoice, 'normal', filename, text)
         if x != 0:
             messagebox.showerror("vocvlc Error", "There is a problem with the voice file")
@@ -727,7 +736,9 @@ Ctrl-H > HotKeys help
 Ctrl-F > Find Text
 Ctrl-N > Find Next Text
 Ctrl-J > Open Selected URL
-Ctrl-Q > Exit Program
+Ctrl-Q > Exit Program no ask
+Ctrl-R > Clear prompt area
+Alt-P > Open Prompt Manager
         '''
         messagebox.showinfo("Hot Keys Help", msg)
 
@@ -746,10 +757,11 @@ Ctrl-Q > Exit Program
             ("Copy", lambda: (popup.destroy(), self.popquery(1))),
             ("Paste", lambda: (popup.destroy(), self.popquery(2))),
             ("Copy All", lambda: (popup.destroy(), self.popquery(3))),
-            ("Larger", lambda: (popup.destroy(), self.popquery(4))),
-            ("Smaller", lambda: (popup.destroy(), self.popquery(5))),
+            ("Prompt Mgr", lambda: (popup.destroy(), self.popquery(4))),
+            ("Clear", lambda: (popup.destroy(), self.popquery(5))),
             ("Close", lambda: (popup.destroy())),
         ]
+
 
         for text, cmd in items:
             b = tk.Button(frame, text=text, anchor="w", command=lambda c=cmd: (popup.destroy(), c()))
@@ -783,11 +795,12 @@ Ctrl-Q > Exit Program
 
     def popquery(self, n):
         ''' Routes query context menu actions '''
-        if n == 1:  # Copy
+        if n == 1:  # Copy to clipboard
             root.clipboard_clear()  # clear clipboard contents
             if self.query.tag_ranges("sel"):
                 root.clipboard_append(self.query.selection_get())  # append new value to clipbaord
-        elif n == 2:  # Paste
+        elif n == 2:  # Paste from clipboard
+            root.update()
             inx = self.query.index(INSERT)
             try:
                 self.query.insert(inx, root.clipboard_get())
@@ -802,14 +815,10 @@ Ctrl-Q > Exit Program
             if self.query.tag_ranges("sel"):  # append new value to clipbaord
                 root.clipboard_append(self.query.selection_get())
                 self.query.tag_remove(SEL, "1.0", END)
-        elif n == 4:  # larger
-            self.TOPFRAME += 2
-            self.query.config(height=self.TOPFRAME)
-        elif n == 5:  # smaller
-            if self.TOPFRAME > 3:
-                self.TOPFRAME -= 2
-                self.query.config(height=self.TOPFRAME)
-
+        elif n == 4:  # Prompt Manager
+            self.create_window(None)
+        elif n == 5:  # clear prompt text area
+            self.query.delete('1.0', 'end')
 
     def poptxt(self, n):
         ''' Routes txt context menu actions '''
@@ -912,6 +921,96 @@ Ctrl-Q > Exit Program
             os.remove(self.MyPath)
             messagebox.showinfo("Log File",
                                 f"{self.MyPath} Removed.")
+
+    # toplevel window
+    def create_window(self, e=None):
+        ''' Opens a toplevel window providing selections of pre-written prompts '''
+        inx = 0  # index of list item
+        items = []
+        pdet = []
+        sdet = ''
+        filepath = "prompts/prompts.txt"
+
+        toplevel = Toplevel(self)
+        toplevel.title("DescAI Prompt Selector")
+
+        # Configure grid for the toplevel
+        toplevel.grid_columnconfigure(0, weight=1)
+        toplevel.grid_columnconfigure(1, weight=1)
+        toplevel.grid_columnconfigure(2, weight=1)
+        toplevel.grid_rowconfigure(1, weight=1)
+
+        def item_selected(e=None):
+            nonlocal inx, pdet
+            list_item = listbox.curselection()
+            item = listbox.get(list_item[0])
+            inx = list_item[0]  # save the index
+
+            txt.delete("1.0", END)
+            txt.insert(1.0, pdet[inx])  # the entire line
+
+            root.clipboard_clear()
+            root.clipboard_append(pdet[inx])  # the entire line
+
+        def pick(which):
+            nonlocal inx, pdet
+            if which == 1:
+                # replace query box with this prompt DETAIL
+                self.query.delete("1.0", END)  # clear the Text widget
+                self.query.insert(1.0, pdet[inx])  # fill the Text widget
+            else: # button 2
+                # append to query box Text
+                cmb = self.query.get(1.0, "end-1c")
+                cmb = cmb + pdet[inx]
+                self.query.delete("1.0", END)  # clear the Text widget
+                self.query.insert(1.0, cmb)  # fill the Text widget
+
+
+        # Listbox (read-only, single selection)
+        listbox = Listbox(toplevel, height=8)
+        listbox.grid(row=0, column=0, columnspan=3, sticky="nsew", padx=5, pady=5)
+        listbox.bind("<<ListboxSelect>>", item_selected)
+
+        txt = Text(toplevel, padx=4, height=5)
+        txt.grid(row=1, column=0, columnspan=3, sticky='nsew', padx=5, pady=5)
+
+        # Read items from a text file (one item per line)
+
+        if os.path.exists(filepath):
+            try:
+
+                with open(filepath, "r", encoding="utf-8") as fin:
+                    for line in fin:
+                        if line.rstrip() == "%%%":
+                            if sdet != '':
+                                pdet.append(sdet)  # append previous DETAIL
+                                sdet = ''
+                            items.append(fin.readline().rstrip())  # append (next) new ITEMS line
+                        else:
+                            sdet += line
+                    pdet.append(sdet)  # append previous and LAST DETAIL
+
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to read {filepath}:\n{e}")
+        else:
+            messagebox.showinfo("Info", f"Items file not found: {filepath}. No items loaded.")
+
+        for it in items:
+            listbox.insert(END, it)
+
+        # Buttons 1, 2 (capture selection) and 3 (close)
+        btn1 = Button(toplevel, text="Fill", command=lambda: pick(1), bootstyle=self.MyButtons)
+        btn2 = Button(toplevel, text="Append", command=lambda: pick(2), bootstyle=self.MyButtons)
+        btn3 = Button(toplevel, text="Close", command=toplevel.destroy, bootstyle=self.MyButtons)
+
+        btn1.grid(row=2, column=0, padx=5, pady=5, sticky="ew")
+        btn2.grid(row=2, column=1, padx=5, pady=5, sticky="ew")
+        btn3.grid(row=2, column=2, padx=5, pady=5, sticky="ew")
+
+        toplevel.update_idletasks()
+        toplevel.geometry("400x350")
+        toplevel.minsize(300, 300)
+        toplevel.attributes("-topmost", True)  # Keep on top of other windows
 
 
     def exit_program(self, e=None):

@@ -11,6 +11,7 @@
 -  Maintains a log of reponses
 -  Simple GUI
 -  Choose from many themes and colors
+-  Pop-up Prompt Manager
 
 see https://platform.openai.com for OpenAI model information  
 see https://www.anthropic.com for information on Claude models
@@ -101,7 +102,7 @@ and opens it in your default browser.
 
 ## Context menu
 
-Right-Click in the response area to get a bunch of useful choices.
+Right-Click in the prompt or response area to get a bunch of useful choices.
 
 ---
 
@@ -126,11 +127,18 @@ preserved anywhere, but will remain in the log until it is purged.
 |__Ctrl-F__| Find text |
 |__Ctrl-N__| Find next text |
 |__Ctrl-J__| Open Selected URL |
+|__Ctrl-R__|Clear Prompt Area|
+|__Alt-P__|Open Prompt Manager|
 
 
 The `prompts` directory is for storing custom prompt text.
 Prompt files must begin with "prompt" and be followed by non-space characters, like `prompt1` or `promptX`.
 You can easily edit your prompt?.md files with a text editor.
+
+In addition, a ___Prompts Manager___ presents named prompts that are created and modified in a file
+called `prompts.txt`.
+
+![alttext](images/promptsmgr.png "DescAI Prompt Manager")
 
 ----
 
