@@ -90,11 +90,12 @@ and opens it in your default browser.
 > Submits prompt to the current AI Model
 >> Ctrl-G and Ctrl-Enter do that too.
 - **Web**
-> Toggle the Gpt "web-search" tool
->> **NOTE:** only works with OpenAI Models
+> Toggle the Gpt "**web**-search" tool
+>> **NOTE:** works with most OpenAI models
+>> Claude Sonnet and Claude Opus
 - **Select _temporary_ Model**
 > Select from models listed in options.ini file
->> On startup the "default" model is always selected
+>> _On startup the "default" model is always selected_
 - **Close**
 > Exit the program. _Ctrl-q_ exits the program without confirmation.
 

@@ -373,6 +373,12 @@ class Application(Frame):
                 api_key=os.environ.get("CLDKEY")
             )
 
+            if self.vw.get() == 1:
+                messagebox.showwarning("Web Search","Web Search is not available with claude-haidu model.")
+                self.query.delete("1.0", END)
+                self.display_intro()
+                return ""
+
             try:
                 # Create the message request
                 response = client.messages.create(
@@ -401,6 +407,7 @@ class Application(Frame):
                 response = client.messages.create(
                     model=self.MyModel,
                     max_tokens=4096,
+                    **({"tools": [{"type": "web_search_20250305", "name": "web_search", "max_uses": 5}]} if self.vw.get() == 1 else {}),
                     # 'thinking' allows Sonnet to solve harder logic/coding bugs
                     thinking={
                         "type": "enabled",
@@ -432,6 +439,7 @@ class Application(Frame):
                 response = client.messages.create(
                     model=self.MyModel,
                     max_tokens=8192,
+                    **({"tools": [{"type": "web_search_20250305", "name": "web_search", "max_uses": 5}]} if self.vw.get() == 1 else {}),
                     # 'thinking' allows Sonnet to solve harder logic/coding bugs
                     thinking={
                         "type": "adaptive",
@@ -544,6 +552,13 @@ class Application(Frame):
 
     def onComboSelect(self, e=None):
         ''' Selecting different AI model '''
+        # warn of conversation reset
+        result = messagebox.askokcancel("Warning",
+                                        "Conversation will be reset!")
+        if result is not True:
+            self.vcmbo_model.set("")
+            return ""
+
         self.MyModel = self.vcmbo_model.get()
         self.MyTitle = apptitle + self.MyModel + " *"
         # update window caption and information

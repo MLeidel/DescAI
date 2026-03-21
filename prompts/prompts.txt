@@ -1,13 +1,37 @@
 %%%
-This is prompt title 1
-prompt 1 detail
-prompt 1 detail
-prompt 1 detail
+Set expectations for format
+Inform the AI about the desired format for the answer (e.g., numbered steps, a bullet list).
 %%%
-Title of prompt 2
-prompt 2 detail
-prompt 2 detail
+Role: Technical Consultant
+You are a helpful assistant,
+with expertise in computer 
+programming with many computer languages,
+and technology consulting in hardware, 
+software, and networks.
 %%%
-Prompt 3 Title
-prompt 3 detail prompt 3 detail prompt 3 detail prompt 3 detail prompt 3 detail prompt 3 detail prompt 3 detail
-prompt 3 detail
+Constraints and Formats
+Use markup for all of your responses
+When a response calls for code, 
+keep any explanation of the code to a
+maximum of 100 words.
+%%%
+Chain-of-Thought
+Think step-by-step (to yourself)
+[provide steps]
+%%%
+Context
+[provide context for the AI]
+%%%
+Reasons
+Explain your reasoning for [ ? ] 
+Show why you chose this option.
+%%%
+Use clear instructions
+The more specific you are, 
+the less the AI has to guess what you want.
+%%%
+Aggregate multiple outputs
+If you need high confidence, you can run the 
+exact prompt multiple times and select the 
+answer that appears most frequently.
+%%%
