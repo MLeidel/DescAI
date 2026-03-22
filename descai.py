@@ -3,7 +3,6 @@
 '''
 descai.py
     by Michael Leidel
-Mar 2026 intgrated Claude models into GptGUI-2
 
 Disclaimer: This software is provided free of charge and "as is," without any warranties,
 express or implied. The author and contributors assume no responsibility for any damages,
@@ -31,8 +30,13 @@ from ttkbootstrap import *
 from ttkbootstrap.constants import *
 from ttkbootstrap.tooltip import ToolTip
 from openai import OpenAI
+from google.genai import types
 import vocvlc
 import anthropic
+#import google.generativeai as genai
+from google import genai
+from google.genai import types
+
 
 apptitle = "DescAI 1.0 "
 
@@ -176,7 +180,7 @@ class Application(Frame):
         self.web.grid(row=1, column=10, sticky='w', pady=(5, 0), padx=(5, 5))
 
         self.vcmbo_model = StringVar()
-        self.cmbo_model = Combobox(btn_frame, textvariable=self.vcmbo_model, width=15, state="readonly")
+        self.cmbo_model = Combobox(btn_frame, textvariable=self.vcmbo_model, width=18, state="readonly")
         self.cmbo_model['values'] = self.MyModels
         self.cmbo_model.grid(row=1, column=11, sticky='w', pady=(5, 0), padx=(5, 5))
         self.cmbo_model.bind('<<ComboboxSelected>>', self.onComboSelect)
@@ -272,6 +276,9 @@ class Application(Frame):
 
         self.query.focus_set()
 
+        # Gemini is not going to preserv chats over restarts
+        self.googlenew = True
+
         #
         # on startup check for conversation.json file
         # The user may have the option to continue the converstation or start fresh.
@@ -280,6 +287,7 @@ class Application(Frame):
 
         if self.conversation == []:
             if not self.MyModel.startswith("claude"):
+                # and not self.MyModel.startswith("gemini":
                 self.conversation = [
                     {"role": "system", "content": self.MySystem}
                 ]
@@ -301,7 +309,7 @@ class Application(Frame):
         intro = f'''
         Welcome to {apptitle}
             a GUI desktop AI client for conversing with
-            OpenAI and Claude Large Language Models
+            OpenAI, Claude, and Gemini Large Language Models
 
         Model: {self.MyModel}
         role: {self.MySystem}
@@ -314,14 +322,15 @@ class Application(Frame):
         font2: {self.MyFntGptF}
         f2 size: {self.MyFntGptZ}
 
-        Registered OpenAI and Claude API keys are required
-        and set as to system environment variables:
-        GPTKEY and CLDKEY.
+        Registered OpenAI, Claude, and Google API keys are
+        required and set as system environment variables:
+        GPTKEY, CLDKEY, and api_key for Google.
 
         Use Ctrl-H for list of keyboard commands
 
         https://auth.openai.com/log-in
         https://platform.claude.com/dashboard
+        https://aistudio.google.com/api-keys
         '''
         return intro
 
@@ -379,13 +388,22 @@ class Application(Frame):
                 self.display_intro()
                 return ""
 
+
+            system_prompt = [
+                {
+                    "type": "text",
+                    "text": self.MySystem,
+                    "cache_control": {"type": "ephemeral"} # Breakpoint 1
+                }
+            ]
+
             try:
                 # Create the message request
                 response = client.messages.create(
                     model=self.MyModel, # Official ID for Haiku 4.5
                     max_tokens=2048,
                     temperature=float(self.MyTemper),  # REMOVE for Sonnet model
-                    system=self.MySystem,
+                    system=system_prompt,
                     cache_control={"type": "ephemeral"},
                     messages=self.conversation
                 )
@@ -402,6 +420,14 @@ class Application(Frame):
                 api_key=os.environ.get("CLDKEY")
             )
 
+            system_prompt = [
+                {
+                    "type": "text",
+                    "text": self.MySystem,
+                    "cache_control": {"type": "ephemeral"} # Breakpoint 1
+                }
+            ]
+
             try:
                 # Create the message request
                 response = client.messages.create(
@@ -414,7 +440,7 @@ class Application(Frame):
                         "budget_tokens": 1024
                     },
                     cache_control={"type": "ephemeral"},
-                    system=self.MySystem,
+                    system=system_prompt,
                     messages=self.conversation
                 )
 
@@ -435,6 +461,14 @@ class Application(Frame):
                 api_key=os.environ.get("CLDKEY")
             )
 
+            system_prompt = [
+                {
+                    "type": "text",
+                    "text": self.MySystem,
+                    "cache_control": {"type": "ephemeral"} # Breakpoint 1
+                }
+            ]
+
             try:
                 response = client.messages.create(
                     model=self.MyModel,
@@ -448,7 +482,7 @@ class Application(Frame):
                         "effort": "medium"
                     },
                     cache_control={"type": "ephemeral"},
-                    system=self.MySystem,
+                    system=system_prompt,
                     messages=self.conversation
                 )
 
@@ -457,6 +491,29 @@ class Application(Frame):
                     if block.type == "text":
                         ai_text += block.text
 
+            except Exception as e:
+                messagebox.showerror("Client Error", str(e))
+                return ""
+
+        elif self.MyModel.startswith("gemini"):  # Google model
+
+            if self.vw.get() == 1:
+                messagebox.showwarning("Web Search","Web Search is not available with Gemini models here.")
+                self.query.delete("1.0", END)
+                self.display_intro()
+                return ""
+
+            try:
+                client = OpenAI(
+                    api_key=os.environ.get("api_key"),
+                    base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+                )
+
+                response = client.chat.completions.create(
+                    model=self.MyModel,
+                    messages=self.conversation)
+
+                ai_text = response.choices[0].message.content.strip()
             except Exception as e:
                 messagebox.showerror("Client Error", str(e))
                 return ""
@@ -521,6 +578,7 @@ class Application(Frame):
         self.query.tag_add("sel", "1.0", "end-1c")
         self.query.focus_set()
 
+#----------------------------------------------------------------------
 
     def get_aprox_tokens(self, text) -> int:
         ''' Calculates aproximate/average tokens from text '''
@@ -532,6 +590,7 @@ class Application(Frame):
     def new_conversation(self):
         ''' start new conversation '''
         self.conversation.clear()
+        self.google_new = True  # Gemini API is temporary always
         # check for system message change
         usertext = self.query.get("1.0", END)
         if usertext.lower().startswith("prompt"):

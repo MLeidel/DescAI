@@ -1,7 +1,7 @@
 # DescAI
 
 ### a GUI desktop AI client  
-#### Converse with OpenAI and Claude Large Language Models
+#### Converse with OpenAI, Claude and Gemini Large Language Models
 
 
 -  Temporary local Chat Mode
@@ -22,6 +22,7 @@ _requires several modules_
         Markdown==3.10.2
         openai==2.28.0
         ttkbootstrap==1.14.2
+        google-genai==1.68.0
 
 _Uses python3 and tkinter_
 
@@ -44,7 +45,9 @@ Use pip to install any missing python modules
 Need access keys from both _OpenAI_ and _Anthropic_
 
 Keys need to be set in respective environments as  
-**GPTKEY** for OpenAI, and **CLDKEY** for Claude
+**GPTKEY** for OpenAI  
+**CLDKEY** for Claude  
+**api_key** for Google Gemini
 
 ---
 
@@ -62,8 +65,7 @@ Each play-back is saved in a separate file in the application directory.
 
 The `options.ini` file contains all of the options settings.
 
-There is a GUI that handles options but not all are covered.  
-You will need a text editor (notepad or xed ...) to help with those.
+There is a GUI that handles options but can use a text editor also.  
 
 ---
 
@@ -94,8 +96,10 @@ and opens it in your default browser.
 >> **NOTE:** works with most OpenAI models
 >> Claude Sonnet and Claude Opus
 - **Select _temporary_ Model**
-> Select from models listed in options.ini file
->> _On startup the "default" model is always selected_
+> Select from models listed in options.ini file  
+Selecting a different model forces a new conversation
+>> _On startup the "default" model is always selected_  
+The default model is set in options
 - **Close**
 > Exit the program. _Ctrl-q_ exits the program without confirmation.
 
@@ -106,6 +110,10 @@ and opens it in your default browser.
 Right-Click in the prompt or response area to get a bunch of useful choices.
 
 ---
+
+### Setting options from the app
+
+![alttext](images/options.png "DescAI Options")
 
 ## Operation
 
