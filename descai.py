@@ -228,6 +228,7 @@ class Application(Frame):
         root.bind("<Alt-p>", self.create_window)
         root.bind("<Control-h>", self.on_kb_help)  # show hotkey help
         root.bind("<Control-q>", self.exit_program)  # Close button
+        root.bind("<Control-e>", self.on_editor_open)  # text editor
         root.bind("<Control-g>", self.on_submit)  # Submit Query button
         root.bind("<Control-Return>", self.on_submit)  # Submit Query button
         root.bind("<Control-Shift-S>", self.speak_text)  # speak query response
@@ -743,6 +744,10 @@ class Application(Frame):
         # subprocess.Popen([self.MyEditor, filename])
         os.system(self.MyEditor + " " + filename)
 
+    def on_editor_open(self, e=None):
+        ''' open your text editor  Ctrl-e '''
+        # subprocess.Popen([self.MyEditor, filename])
+        os.system(self.MyEditor)
 
     def on_md_render(self, e=None):
         ''' render txt (MD) to html and show window '''
@@ -812,6 +817,7 @@ Ctrl-N > Find Next Text
 Ctrl-J > Open Selected URL
 Ctrl-Q > Exit Program no ask
 Ctrl-R > Clear prompt area
+Ctrl-E > Open Text Editor
 Alt-P > Open Prompt Manager
         '''
         messagebox.showinfo("Hot Keys Help", msg)
