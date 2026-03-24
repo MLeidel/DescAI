@@ -277,10 +277,10 @@ MyColor = config['Main']['color']
 MyRole = config['Main']['system']
 MySize = int(config['Main']['top_frame'])
 MyTemper = config['Main']['temper']
-mods = config['Models']['list']
-MyModels = mods.split(',')
-MyModels = [s.strip() for s in MyModels]
-
+# mods = config['Models']['list']
+# MyModels = mods.split(',')
+with open("models.dat", 'r', encoding='utf-8') as f:
+    MyModels = [line.strip() for line in f if line.strip()]
 # change working directory to path for this file
 p = os.path.realpath(__file__)
 os.chdir(os.path.dirname(p))

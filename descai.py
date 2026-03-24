@@ -73,9 +73,9 @@ class Application(Frame):
         self.MySystem   = config['Main']['system']
         self.MyTemper   = config['Main']['temper']
         self.TOPFRAME   = int(config['Main']['top_frame'])
-        mods = config['Models']['list']
-        self.MyModels = mods.split(',')
-        self.MyModels = [s.strip() for s in self.MyModels]
+
+        with open("models.dat", 'r', encoding='utf-8') as f:
+            self.MyModels = [line.strip() for line in f if line.strip()]
 
         self.MyKey = "GPTKEY"  # Claude is hardcoded to CLDKEY
         self.MyTitle = apptitle + self.MyModel
