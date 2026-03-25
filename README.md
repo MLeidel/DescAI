@@ -1,17 +1,19 @@
 # DescAI
 
 ### a GUI desktop AI client  
-#### Converse with OpenAI, Claude and Gemini Large Language Models
+>#### Converse with cloud based LLMs 
+>##### Openai Google anthropic Ollama
 
 
 -  Temporary local Chat Mode
 -  Supports a variety of OpenAI models and web-search
--  Supports Claude Haiku, Sonnet, and Opus
+-  Supports Claude models and web-search
 -  Convert responses to HTML or VOICE
 -  Maintains a log of reponses
 -  Simple GUI
+-  Renders HTML from Markdown
 -  Choose from many themes and colors
--  Pop-up Prompt Manager
+-  Pop-up Prompt Manager | Options Manager
 
 see https://platform.openai.com for OpenAI model information  
 see https://www.anthropic.com for information on Claude models
@@ -19,14 +21,18 @@ see https://www.anthropic.com for information on Claude models
 _requires several modules_  
 
         anthropic==0.84.0
-        Markdown==3.10.2
         openai==2.28.0
-        ttkbootstrap==1.14.2
         google-genai==1.68.0
+        ollama==0.6.1
+        Markdown==3.10.2
+        ttkbootstrap==1.14.2
 
-_Uses python3 and tkinter_
+_Uses Python and tkinter_
 
-and:
+>python3  
+>python3-tk
+
+aditional requirements:
 
         text editor
         
@@ -40,14 +46,22 @@ and:
 
 ## Instalation
 
-Use pip to install any missing python modules
+Use `pip` to install any missing python modules
+needed for API access. Consult the vendor for
+the correct `pip...` syntax.
 
-Need access keys from both _OpenAI_ and _Anthropic_
+Also you will need **_API keys_** from each vendor.  
+The vendors offer both free and paid tiers.  
+Here are the vendors, websites, and key labels to use:
 
-Keys need to be set in respective environments as  
-**GPTKEY** for OpenAI  
-**CLDKEY** for Claude  
-**api_key** for Google Gemini
+| Vendor | Website | ENVariable | 
+| :--- | :--- | :--- |
+| OpenAI | https://platform.openai.com | **OPENAI_API_KEY** |
+| Anthropic | https://claude.ai/settings | **CLDKEY** |
+| Google | https://aistudio.google.com | **api_key** |
+| Ollama | https://ollama.com/settings | **OLLAMA_API_KEY** |
+
+Windows and Linux have various way to set these variables.
 
 ---
 
@@ -92,14 +106,14 @@ and opens it in your default browser.
 > Submits prompt to the current AI Model
 >> Ctrl-G and Ctrl-Enter do that too.
 - **Web**
-> Toggle the Gpt "**web**-search" tool
->> **NOTE:** works with most OpenAI models
+> Toggle the "**web**-search" tool
+>> **NOTE:** works with most OpenAI models,  
 >> Claude Sonnet and Claude Opus
 - **Select _temporary_ Model**
-> Select from models listed in options.ini file  
+> Select from models listed in `models.dat` text file  
 Selecting a different model forces a new conversation
 >> _On startup the "default" model is always selected_  
-The default model is set in options
+The default model is set in options (`options.ini`)
 - **Close**
 > Exit the program. _Ctrl-q_ exits the program without confirmation.
 

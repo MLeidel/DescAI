@@ -31,8 +31,10 @@ from ttkbootstrap.constants import *
 from ttkbootstrap.tooltip import ToolTip
 from openai import OpenAI
 from google.genai import types
-import vocvlc
+from ollama import Client
 import anthropic
+import vocvlc
+
 #import google.generativeai as genai
 from google import genai
 from google.genai import types
@@ -310,7 +312,7 @@ class Application(Frame):
         intro = f'''
         Welcome to {apptitle}
             a GUI desktop AI client for conversing with
-            OpenAI, Claude, and Gemini Large Language Models
+            OpenAI, Claude, Gemini, and Ollama's Large Language Models
 
         Model: {self.MyModel}
         role: {self.MySystem}
@@ -323,15 +325,16 @@ class Application(Frame):
         font2: {self.MyFntGptF}
         f2 size: {self.MyFntGptZ}
 
-        Registered OpenAI, Claude, and Google API keys are
-        required and set as system environment variables:
-        GPTKEY, CLDKEY, and api_key for Google.
-
         Use Ctrl-H for list of keyboard commands
+
+        Registered API keys are required to be set
+        as system environment variables.
+        See https://github.com/MLeidel/DescAI for details.
 
         https://auth.openai.com/log-in
         https://platform.claude.com/dashboard
         https://aistudio.google.com/api-keys
+        https://ollama.com/
         '''
         return intro
 
@@ -519,6 +522,41 @@ class Application(Frame):
                 messagebox.showerror("Client Error", str(e))
                 return ""
 
+        elif self.MyModel.endswith("cloud"):  # Ollama cloud model
+            ''' method to access Ollama cloud API '''
+
+            if self.vw.get() == 1:
+                messagebox.showwarning("Web Search","Web Search is not available with these Ollama models.")
+                self.query.delete("1.0", END)
+                self.display_intro()
+                return ""
+
+            client = Client(
+                host='https://ollama.com',
+                headers={
+                    'Authorization': f"Bearer {os.environ.get('OLLAMA_API_KEY')}"
+                }
+            )
+
+            try:
+
+                response = client.chat(
+                    model=self.MyModel,
+                    messages=self.conversation,
+                    stream=True
+                )
+
+                full_response = ""
+                for chunk in response:
+                    content = chunk['message']['content']
+                    full_response += content
+
+                ai_text = full_response
+
+            except Exception as e:
+                wx.MessageBox(str(e), 'Info', wx.OK | wx.ICON_ERROR)
+                return ""
+
         ### OpenAI ###
 
         else:
@@ -547,6 +585,9 @@ class Application(Frame):
                 except Exception as e:
                     ai_text = e
 
+
+        #############################################################
+
         if ai_text == "":
             self.query.delete("1.0", END)
             self.display_intro()
@@ -556,6 +597,7 @@ class Application(Frame):
         self.conversation.append(
             {"role": "assistant", "content": ai_text}
         )
+
 
         # 4) show it
         self.txt.delete("1.0", END)
