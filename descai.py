@@ -18,8 +18,9 @@ import subprocess
 import webbrowser
 import platform
 import json
-from time import localtime, strftime
 import markdown
+import re
+from time import localtime, strftime
 from tkinter import TclError
 from tkinter import Listbox
 from pathlib import Path
@@ -74,6 +75,7 @@ class Application(Frame):
         self.MyColor    = config['Main']['color']
         self.MySystem   = config['Main']['system']
         self.MyTemper   = config['Main']['temper']
+        self.MyMd1      = config['Main']['md1']
         self.TOPFRAME   = int(config['Main']['top_frame'])
 
         with open("models.dat", 'r', encoding='utf-8') as f:
@@ -118,7 +120,7 @@ class Application(Frame):
 
         # --- Response frame (bottom pane) ---
         self.txt_frame = Frame(self.paned)
-        self.txt = Text(self.txt_frame)
+        self.txt = Text(self.txt_frame, fg=self.MyColor)
         self.txt.pack(side=LEFT, fill=BOTH, expand=True)
         efont = Font(family=self.MyFntGptF, size=self.MyFntGptZ)
         self.txt.configure(font=efont)
@@ -240,6 +242,16 @@ class Application(Frame):
         root.bind("<Control-j>", self.open_selected_url)  # open selected URL in browser
         self.query.bind("<Button-3>", self.do_pop_query)
         self.txt.bind("<Button-3>", self.do_pop_txt)
+        # Bind events for real-time highlighting
+        self.txt.bind("<KeyRelease>", self.on_key_release)
+        self.txt.bind("<Button-1>", self.on_click)
+
+        # Configure tags for different Markdown elements
+        self.txt.tag_configure("heading1",  foreground=self.MyMd1)
+        self.txt.tag_configure("heading2",  foreground=self.MyMd1)
+        self.txt.tag_configure("heading3",  foreground=self.MyMd1)
+        self.txt.tag_configure("heading4",  foreground=self.MyMd1)
+        self.txt.tag_configure("hrule",     foreground=self.MyMd1)
 
         # ToolTips
         ToolTip(self.new,
@@ -275,12 +287,9 @@ class Application(Frame):
         self.last_found_index = "1.0"
 
         # Create a tag to highlight the search result.
-        self.txt.tag_config("highlight", background="gray", foreground="white")
+        self.txt.tag_config("highlight", background="light grey", foreground="black")
 
         self.query.focus_set()
-
-        # Gemini is not going to preserv chats over restarts
-        self.googlenew = True
 
         #
         # on startup check for conversation.json file
@@ -298,10 +307,6 @@ class Application(Frame):
                 os.remove(self.cpath)
         else:
             self.on_new()
-
-        self.txt.tag_configure('all_text', foreground=self.MyColor)
-        # use the following line to refresh the txt color when needed
-        self.txt.tag_add('all_text', '1.0', 'end-1c')  # exclude trailing newline
 
 #----------------------------------------------------------------------
 
@@ -342,7 +347,6 @@ class Application(Frame):
     def display_intro(self):
         self.txt.delete("1.0", END)
         self.txt.insert("1.0", self.set_intro())
-        self.txt.tag_add('all_text', '1.0', 'end-1c')
 
 
     def show_prompts(self, fword: str):
@@ -602,8 +606,7 @@ class Application(Frame):
         # 4) show it
         self.txt.delete("1.0", END)
         self.txt.insert("1.0", ai_text)
-        self.txt.tag_add('all_text', '1.0', 'end-1c')
-
+        self.after(400, self.highlight)
         # SAVE conversation to disk
         self.save_buffer(self.conversation, self.cpath)
 
@@ -708,6 +711,7 @@ class Application(Frame):
             self.txt.insert("1.0", fin.read())
         self.txt.see(END)
         self.query.delete("1.0", END)
+        self.after(400, self.highlight)
 
 
 
@@ -756,9 +760,8 @@ class Application(Frame):
         root.title(self.MyTitle)
         self.txt.delete("1.0", END)
         self.txt.insert("1.0", self.set_intro())
-        self.txt.tag_configure('all_text', foreground=self.MyColor)
-        # use the following line to refresh the txt color when needed
-        self.txt.tag_add('all_text', '1.0', 'end-1c')  # exclude trailing newline
+        self.txt.config(fg=self.MyColor)
+        self.new_conversation()  # Note: cannot continue current conversation when switching models.
 
 
     def getmdtext(self):
@@ -1134,6 +1137,39 @@ Alt-P > Open Prompt Manager
         toplevel.minsize(300, 300)
         toplevel.attributes("-topmost", True)  # Keep on top of other windows
 
+    def on_key_release(self, event=None):
+        self.highlight()
+
+    def on_click(self, event=None):
+        self.after(10, self.highlight)  # Small delay to ensure cursor position updates
+
+    def highlight(self):
+        # Remove existing tags ///
+        for tag in ["heading1", "heading2", "heading3",
+                   "heading4", "hrule"]:
+            self.txt.tag_remove(tag, "1.0", "end")
+
+        # Get all text content
+        content = self.txt.get("1.0", "end-1c")
+
+        # Highlight headings (must be at start of line)
+        for i, line in enumerate(content.split('\n'), 1):
+            # Heading 1 (# Header)
+            if re.match(r'^#\s', line):
+                self.txt.tag_add("heading1", f"{i}.0", f"{i}.{len(line)}")
+            # Heading 2 (## Header)
+            elif re.match(r'^##\s', line):
+                self.txt.tag_add("heading2", f"{i}.0", f"{i}.{len(line)}")
+            # Heading 3 (### Header)
+            elif re.match(r'^###\s', line):
+                self.txt.tag_add("heading3", f"{i}.0", f"{i}.{len(line)}")
+            # Heading 4 (#### Header)
+            elif re.match(r'^####\s', line):
+                self.txt.tag_add("heading4", f"{i}.0", f"{i}.{len(line)}")
+            # Horizontal rule
+            elif re.match(r'^(---+|___+|\*\*\*+)$', line):
+                self.txt.tag_add("hrule", f"{i}.0", f"{i}.{len(line)}")
+
 
     def exit_program(self, e=None):
         ''' Only exit program without prompt if
@@ -1146,7 +1182,7 @@ Alt-P > Open Prompt Manager
             save_location()
             sys.exit()
         if e is None:  # ctrl-q avoids this message
-            if messagebox.askokcancel('GptGUI',
+            if messagebox.askokcancel('DescAI',
                                       'Confirm Exit app?') is False:
                 return
         save_location()
