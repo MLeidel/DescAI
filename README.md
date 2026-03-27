@@ -2,7 +2,7 @@
 
 ### a GUI desktop AI client  
 >#### Converse with cloud based LLMs 
->##### Openai Google anthropic Ollama
+>##### Openai Google anthropic Ollama Groq
 
 
 -  Temporary local Chat Mode
@@ -26,6 +26,7 @@ _requires several modules_
         ollama==0.6.1
         Markdown==3.10.2
         ttkbootstrap==1.14.2
+        groq==1.1.2
 
 _Uses Python and tkinter_
 
@@ -60,6 +61,7 @@ Here are the vendors, websites, and key labels to use:
 | Anthropic | https://claude.ai/settings | **CLDKEY** |
 | Google | https://aistudio.google.com | **api_key** |
 | Ollama | https://ollama.com/settings | **OLLAMA_API_KEY** |
+| groq | https://console.groq.com/keys | **GROQ_KEY** |
 
 Windows and Linux have various way to set these variables.
 
@@ -108,7 +110,7 @@ and opens it in your default browser.
 - **Web**
 > Toggle the "**web**-search" tool
 >> **NOTE:** works with most OpenAI models,  
->> Claude Sonnet and Claude Opus
+>> Claude Sonnet, Claude Opus, and groq/compound
 - **Select _temporary_ Model**
 > Select from models listed in `models.dat` text file  
 Selecting a different model forces a new conversation

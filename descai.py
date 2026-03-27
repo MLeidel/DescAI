@@ -33,6 +33,7 @@ from ttkbootstrap.tooltip import ToolTip
 from openai import OpenAI
 from google.genai import types
 from ollama import Client
+from groq import Groq
 import anthropic
 import vocvlc
 
@@ -76,6 +77,7 @@ class Application(Frame):
         self.MySystem   = config['Main']['system']
         self.MyTemper   = config['Main']['temper']
         self.MyMd1      = config['Main']['md1']
+        self.MyMd2      = config['Main']['md2']
         self.TOPFRAME   = int(config['Main']['top_frame'])
 
         with open("models.dat", 'r', encoding='utf-8') as f:
@@ -247,11 +249,10 @@ class Application(Frame):
         self.txt.bind("<Button-1>", self.on_click)
 
         # Configure tags for different Markdown elements
-        self.txt.tag_configure("heading1",  foreground=self.MyMd1)
-        self.txt.tag_configure("heading2",  foreground=self.MyMd1)
-        self.txt.tag_configure("heading3",  foreground=self.MyMd1)
-        self.txt.tag_configure("heading4",  foreground=self.MyMd1)
+        self.txt.tag_configure("headings",  foreground=self.MyMd1)
         self.txt.tag_configure("hrule",     foreground=self.MyMd1)
+        self.txt.tag_configure("bold",      foreground=self.MyMd2)
+        self.txt.tag_configure("italic",    foreground=self.MyMd2)
 
         # ToolTips
         ToolTip(self.new,
@@ -556,6 +557,30 @@ class Application(Frame):
                     full_response += content
 
                 ai_text = full_response
+
+            except Exception as e:
+                wx.MessageBox(str(e), 'Info', wx.OK | wx.ICON_ERROR)
+                return ""
+
+        elif self.MyModel.startswith("groq"):  # GROQ
+            ''' method to access GROQ API '''
+
+            try:
+
+                client = Groq(
+                    # This is the default and can be omitted
+                    api_key=os.environ.get("GROQ_KEY"),
+                    default_headers={
+                        "Groq-Model-Version": "latest"
+                    }
+                )
+
+                chat_completion = client.chat.completions.create(
+                    messages=self.conversation,
+                    model=self.MyModel
+                )
+
+                ai_text = chat_completion.choices[0].message.content
 
             except Exception as e:
                 wx.MessageBox(str(e), 'Info', wx.OK | wx.ICON_ERROR)
@@ -1145,8 +1170,7 @@ Alt-P > Open Prompt Manager
 
     def highlight(self):
         # Remove existing tags ///
-        for tag in ["heading1", "heading2", "heading3",
-                   "heading4", "hrule"]:
+        for tag in ["headings", "bold", "italic", "hrule"]:
             self.txt.tag_remove(tag, "1.0", "end")
 
         # Get all text content
@@ -1156,19 +1180,35 @@ Alt-P > Open Prompt Manager
         for i, line in enumerate(content.split('\n'), 1):
             # Heading 1 (# Header)
             if re.match(r'^#\s', line):
-                self.txt.tag_add("heading1", f"{i}.0", f"{i}.{len(line)}")
+                self.txt.tag_add("headings", f"{i}.0", f"{i}.{len(line)}")
             # Heading 2 (## Header)
             elif re.match(r'^##\s', line):
-                self.txt.tag_add("heading2", f"{i}.0", f"{i}.{len(line)}")
+                self.txt.tag_add("headings", f"{i}.0", f"{i}.{len(line)}")
             # Heading 3 (### Header)
             elif re.match(r'^###\s', line):
-                self.txt.tag_add("heading3", f"{i}.0", f"{i}.{len(line)}")
+                self.txt.tag_add("headings", f"{i}.0", f"{i}.{len(line)}")
             # Heading 4 (#### Header)
             elif re.match(r'^####\s', line):
-                self.txt.tag_add("heading4", f"{i}.0", f"{i}.{len(line)}")
+                self.txt.tag_add("headings", f"{i}.0", f"{i}.{len(line)}")
+             # Heading 5 (##### Header)
+            elif re.match(r'^#####\s', line):
+                self.txt.tag_add("headings", f"{i}.0", f"{i}.{len(line)}")
             # Horizontal rule
             elif re.match(r'^(---+|___+|\*\*\*+)$', line):
                 self.txt.tag_add("hrule", f"{i}.0", f"{i}.{len(line)}")
+
+        # Highlight inline elements in entire content
+        # Bold (**text** or __text__)
+        for match in re.finditer(r'\*\*(.*?)\*\*', content):
+            start_idx = f"1.0+{match.start()}c"
+            end_idx = f"1.0+{match.end()}c"
+            self.txt.tag_add("bold", start_idx, end_idx)
+
+        # Italic (*text* or _text_)
+        for match in re.finditer(r'(?<!\*)\*(?!\*)(.*?)\*(?!\*)', content):
+            start_idx = f"1.0+{match.start()}c"
+            end_idx = f"1.0+{match.end()}c"
+            self.txt.tag_add("italic", start_idx, end_idx)
 
 
     def exit_program(self, e=None):
