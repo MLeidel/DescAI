@@ -79,6 +79,7 @@ class Application(Frame):
         self.MyTemper   = config['Main']['temper']
         self.MyMd1      = config['Main']['md1']
         self.MyMd2      = config['Main']['md2']
+        self.MyMd3      = config['Main']['md3']
         self.TOPFRAME   = int(config['Main']['top_frame'])
 
         with open("models.dat", 'r', encoding='utf-8') as f:
@@ -254,6 +255,7 @@ class Application(Frame):
         self.txt.tag_configure("hrule",     foreground=self.MyMd1)
         self.txt.tag_configure("bold",      foreground=self.MyMd2)
         self.txt.tag_configure("italic",    foreground=self.MyMd2)
+        self.txt.tag_configure("code",      foreground=self.MyMd3, font=("Noto Sans Mono", 10))
 
         # ToolTips
         ToolTip(self.new,
@@ -1171,7 +1173,7 @@ Alt-P > Open Prompt Manager
 
     def highlight(self):
         # Remove existing tags ///
-        for tag in ["headings", "bold", "italic", "hrule"]:
+        for tag in ["headings", "bold", "italic", "hrule", "code"]:
             self.txt.tag_remove(tag, "1.0", "end")
 
         # Get all text content
@@ -1199,6 +1201,13 @@ Alt-P > Open Prompt Manager
                 self.txt.tag_add("hrule", f"{i}.0", f"{i}.{len(line)}")
 
         # Highlight inline elements in entire content
+
+        # Inline code (`code`)
+        for match in re.finditer(r'`(.*?)`', content):
+            start_idx = f"1.0+{match.start()}c"
+            end_idx = f"1.0+{match.end()}c"
+            self.txt.tag_add("code", start_idx, end_idx)
+
         # Bold (**text** or __text__)
         for match in re.finditer(r'\*\*(.*?)\*\*', content):
             start_idx = f"1.0+{match.start()}c"
