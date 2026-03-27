@@ -50,7 +50,8 @@ class Application(Frame):
         are available via hot keys. AI prompts go in the top pane
         and the AI responses go in the bottom pane.
 
-        Currently the API code supports most OpenAI and Claude LLM's.
+        Currently the API code supports many
+        Gpt, Claude, Gemini, Ollama, and Groq LLM's.
     '''
     def __init__(self, parent):
         Frame.__init__(self, parent)
