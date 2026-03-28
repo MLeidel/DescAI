@@ -257,6 +257,8 @@ class Application(Frame):
         self.txt.tag_configure("italic",    foreground=self.MyMd2)
         self.txt.tag_configure("code",      foreground=self.MyMd3, font=("Noto Sans Mono", 10))
 
+        self.txt.config(fg=self.MyColor)  # refresh txt foreground
+
         # ToolTips
         ToolTip(self.new,
                 text="Start new conversation",
@@ -345,6 +347,7 @@ class Application(Frame):
         https://aistudio.google.com/api-keys
         https://ollama.com/
         '''
+
         return intro
 
 
@@ -363,6 +366,289 @@ class Application(Frame):
             messagebox.showerror("Prompt File", f"{prmt} not found.")
 
 
+    '''         API FUNCTIONS START HERE
+        ▄▖▄▖▄▖
+        ▌ ▙▌▐
+        ▙▌▌ ▐
+    '''
+    def api_gpt(self): # OpenAI models ...
+        '''  '''
+        if self.vw.get() == 1:  #  requesting web search tool
+            # print("web search")
+            try:
+                client = OpenAI(api_key=os.environ.get("GPTKEY"))
+                response = client.responses.create(
+                    model=self.MyModel,
+                    tools=[{"type": "web_search"}],
+                    input=self.conversation
+                )
+                ai_text = response.output_text
+            except Exception as e:
+                messagebox.showerror("Client Error", str(e))
+                ai_text = ""
+        else:
+            # regular OpenAI request
+            try:
+                client = OpenAI(api_key=os.environ.get("GPTKEY"))
+                resp  = client.chat.completions.create(
+                model = self.MyModel,
+                messages = self.conversation)
+                content = resp.choices[0].message.content.strip()
+                ai_text = content
+            except Exception as e:
+                messagebox.showerror("Client Error", str(e))
+                ai_text = ""
+
+        return ai_text
+
+    '''
+        ▄▖▜      ▌    ▖▖  ▘▌
+        ▌ ▐ ▀▌▌▌▛▌█▌  ▙▌▀▌▌▙▘▌▌
+        ▙▖▐▖█▌▙▌▙▌▙▖  ▌▌█▌▌▛▖▙▌
+    '''
+    def api_claude_haiku(self):
+        '''  '''
+        client = anthropic.Anthropic(
+            api_key=os.environ.get("CLDKEY")
+        )
+
+        if self.vw.get() == 1:
+            messagebox.showwarning("Web Search","Web Search is not available with claude-haidu model.")
+            self.query.delete("1.0", END)
+            self.display_intro()
+            return ""
+
+
+        system_prompt = [
+            {
+                "type": "text",
+                "text": self.MySystem,
+                "cache_control": {"type": "ephemeral"} # Breakpoint 1
+            }
+        ]
+
+        try:
+            # Create the message request
+            response = client.messages.create(
+                model=self.MyModel, # Official ID for Haiku 4.5
+                max_tokens=2048,
+                temperature=float(self.MyTemper),  # REMOVE for Sonnet model
+                system=system_prompt,
+                cache_control={"type": "ephemeral"},
+                messages=self.conversation
+            )
+
+            # Extract response text ONLY for HAIKU model
+            ai_text = response.content[0].text
+
+        except Exception as e:
+            messagebox.showerror("Client Error", str(e))
+            ai_text = ""
+
+        return ai_text
+
+    '''
+        ▄▖▜      ▌    ▄▖        ▗
+        ▌ ▐ ▀▌▌▌▛▌█▌  ▚ ▛▌▛▌▛▌█▌▜▘
+        ▙▖▐▖█▌▙▌▙▌▙▖  ▄▌▙▌▌▌▌▌▙▖▐▖
+    '''
+    def api_claude_sonnet(self):
+        '''  '''
+        client = anthropic.Anthropic(
+            api_key=os.environ.get("CLDKEY")
+        )
+
+        system_prompt = [
+            {
+                "type": "text",
+                "text": self.MySystem,
+                "cache_control": {"type": "ephemeral"} # Breakpoint 1
+            }
+        ]
+
+        try:
+            # Create the message request
+            response = client.messages.create(
+                model=self.MyModel,
+                max_tokens=4096,
+                **({"tools": [{"type": "web_search_20250305", "name": "web_search", "max_uses": 5}]} if self.vw.get() == 1 else {}),
+                # 'thinking' allows Sonnet to solve harder logic/coding bugs
+                thinking={
+                    "type": "enabled",
+                    "budget_tokens": 1024
+                },
+                cache_control={"type": "ephemeral"},
+                system=system_prompt,
+                messages=self.conversation
+            )
+
+            # Sonnet 4.6 returns content in blocks (Thinking + Text)
+            ai_text = ""
+            for block in response.content:
+                if block.type == "text":
+                    ai_text += block.text
+
+        except Exception as e:
+            messagebox.showerror("Client Error", str(e))
+            ai_text = ""
+
+        return ai_text
+
+    '''
+        ▄▖▜      ▌    ▄▖
+        ▌ ▐ ▀▌▌▌▛▌█▌  ▌▌▛▌▌▌▛▘
+        ▙▖▐▖█▌▙▌▙▌▙▖  ▙▌▙▌▙▌▄▌
+                        ▌
+    '''
+    def api_claude_opus(self):
+        '''  '''
+        client = anthropic.Anthropic(
+            api_key=os.environ.get("CLDKEY")
+        )
+
+        system_prompt = [
+            {
+                "type": "text",
+                "text": self.MySystem,
+                "cache_control": {"type": "ephemeral"} # Breakpoint 1
+            }
+        ]
+
+        try:
+            response = client.messages.create(
+                model=self.MyModel,
+                max_tokens=8192,
+                **({"tools": [{"type": "web_search_20250305", "name": "web_search", "max_uses": 5}]} if self.vw.get() == 1 else {}),
+                # 'thinking' allows Sonnet to solve harder logic/coding bugs
+                thinking={
+                    "type": "adaptive",
+                },
+                output_config={
+                    "effort": "medium"
+                },
+                cache_control={"type": "ephemeral"},
+                system=system_prompt,
+                messages=self.conversation
+            )
+
+            ai_text = ""
+            for block in response.content:
+                if block.type == "text":
+                    ai_text += block.text
+
+        except Exception as e:
+            messagebox.showerror("Client Error", str(e))
+            ai_text = ""
+
+        return ai_text
+
+    '''
+        ▄▖      ▜     ▄▖     ▘  ▘
+        ▌ ▛▌▛▌▛▌▐ █▌  ▌ █▌▛▛▌▌▛▌▌
+        ▙▌▙▌▙▌▙▌▐▖▙▖  ▙▌▙▖▌▌▌▌▌▌▌
+              ▄▌
+    '''
+    def api_gemini(self):
+        '''  '''
+        if self.vw.get() == 1:
+            messagebox.showwarning("Web Search","Web Search is not available with Gemini models here.")
+            self.query.delete("1.0", END)
+            self.display_intro()
+            return ""
+
+        try:
+            client = OpenAI(
+                api_key=os.environ.get("api_key"),
+                base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+            )
+
+            response = client.chat.completions.create(
+                model=self.MyModel,
+                messages=self.conversation)
+
+            ai_text = response.choices[0].message.content.strip()
+        except Exception as e:
+            messagebox.showerror("Client Error", str(e))
+            ai_text = ""
+
+        return ai_text
+
+    '''
+        ▄▖▜ ▜          ▄▖▜      ▌
+        ▌▌▐ ▐ ▀▌▛▛▌▀▌  ▌ ▐ ▛▌▌▌▛▌
+        ▙▌▐▖▐▖█▌▌▌▌█▌  ▙▖▐▖▙▌▙▌▙▌
+    '''
+    def api_ollama_cloud(self):
+        '''  '''
+        if self.vw.get() == 1:
+            messagebox.showwarning("Web Search","Web Search is not available with these Ollama models.")
+            self.query.delete("1.0", END)
+            self.display_intro()
+            return ""
+
+        client = Client(
+            host='https://ollama.com',
+            headers={
+                'Authorization': f"Bearer {os.environ.get('OLLAMA_API_KEY')}"
+            }
+        )
+
+        try:
+
+            response = client.chat(
+                model=self.MyModel,
+                messages=self.conversation,
+                stream=True
+            )
+
+            full_response = ""
+            for chunk in response:
+                content = chunk['message']['content']
+                full_response += content
+
+            ai_text = full_response
+
+        except Exception as e:
+            wx.MessageBox(str(e), 'Info', wx.OK | wx.ICON_ERROR)
+            ai_text = ""
+
+        return ai_text
+
+    '''
+        ▄▖
+        ▌ ▛▘▛▌▛▌
+        ▙▌▌ ▙▌▙▌
+               ▌
+    '''
+    def api_groq(self):
+        ''' method to access GROQ API '''
+        try:
+
+            client = Groq(
+                # This is the default and can be omitted
+                api_key=os.environ.get("GROQ_KEY"),
+                default_headers={
+                    "Groq-Model-Version": "latest"
+                }
+            )
+
+            chat_completion = client.chat.completions.create(
+                messages=self.conversation,
+                model=self.MyModel
+            )
+
+            ai_text = chat_completion.choices[0].message.content
+
+        except Exception as e:
+            wx.MessageBox(str(e), 'Info', wx.OK | wx.ICON_ERROR)
+            ai_text = ""
+
+        return ai_text
+
+    #################
+    ### ON SUBMIT ###
+    #################
+
     def on_submit(self, event=None):
         ''' Event handler for Submit button (Ctrl-G).
             Handles OpenAI and Claude APIs '''
@@ -370,252 +656,71 @@ class Application(Frame):
         query = self.query.get("1.0", END).strip()
 
         # show prompt.md document
-
         if query.startswith("prompt"):
             fword = query.split()
             self.show_prompts(fword[0])
             return
 
         # begin submiting request
-
         self.txt.delete("1.0", END)
         self.txt.insert("1.0", "Thinking ..." )
         self.txt.update_idletasks()
 
-        # 1) add the user message
+        # add the user message (prompt)
         self.conversation.append(
             {"role": "user", "content": query}
         )
 
-        # 2) call the chat completion
-        #   Either OpenAI or Claude !
-        if self.MyModel.startswith("claude-haiku"):
-            client = anthropic.Anthropic(
-                api_key=os.environ.get("CLDKEY")
-            )
+        # call the set chat completion API
 
-            if self.vw.get() == 1:
-                messagebox.showwarning("Web Search","Web Search is not available with claude-haidu model.")
-                self.query.delete("1.0", END)
-                self.display_intro()
-                return ""
-
-
-            system_prompt = [
-                {
-                    "type": "text",
-                    "text": self.MySystem,
-                    "cache_control": {"type": "ephemeral"} # Breakpoint 1
-                }
-            ]
-
-            try:
-                # Create the message request
-                response = client.messages.create(
-                    model=self.MyModel, # Official ID for Haiku 4.5
-                    max_tokens=2048,
-                    temperature=float(self.MyTemper),  # REMOVE for Sonnet model
-                    system=system_prompt,
-                    cache_control={"type": "ephemeral"},
-                    messages=self.conversation
-                )
-
-                # Extract response text ONLY for HAIKU model
-                ai_text = response.content[0].text
-
-            except Exception as e:
-                messagebox.showerror("Client Error", str(e))
-                return ""
-
-        elif self.MyModel.startswith("claude-sonnet"):  # Sonnet modle
-            client = anthropic.Anthropic(
-                api_key=os.environ.get("CLDKEY")
-            )
-
-            system_prompt = [
-                {
-                    "type": "text",
-                    "text": self.MySystem,
-                    "cache_control": {"type": "ephemeral"} # Breakpoint 1
-                }
-            ]
-
-            try:
-                # Create the message request
-                response = client.messages.create(
-                    model=self.MyModel,
-                    max_tokens=4096,
-                    **({"tools": [{"type": "web_search_20250305", "name": "web_search", "max_uses": 5}]} if self.vw.get() == 1 else {}),
-                    # 'thinking' allows Sonnet to solve harder logic/coding bugs
-                    thinking={
-                        "type": "enabled",
-                        "budget_tokens": 1024
-                    },
-                    cache_control={"type": "ephemeral"},
-                    system=system_prompt,
-                    messages=self.conversation
-                )
-
-                # Sonnet 4.6 returns content in blocks (Thinking + Text)
-                ai_text = ""
-                for block in response.content:
-                    if block.type == "text":
-                        ai_text += block.text
-
-            except Exception as e:
-                messagebox.showerror("Client Error", str(e))
-                return ""
-
-        ### Opus ###
-
-        elif self.MyModel.startswith("claude-opus"):  # Opus modle
-            client = anthropic.Anthropic(
-                api_key=os.environ.get("CLDKEY")
-            )
-
-            system_prompt = [
-                {
-                    "type": "text",
-                    "text": self.MySystem,
-                    "cache_control": {"type": "ephemeral"} # Breakpoint 1
-                }
-            ]
-
-            try:
-                response = client.messages.create(
-                    model=self.MyModel,
-                    max_tokens=8192,
-                    **({"tools": [{"type": "web_search_20250305", "name": "web_search", "max_uses": 5}]} if self.vw.get() == 1 else {}),
-                    # 'thinking' allows Sonnet to solve harder logic/coding bugs
-                    thinking={
-                        "type": "adaptive",
-                    },
-                    output_config={
-                        "effort": "medium"
-                    },
-                    cache_control={"type": "ephemeral"},
-                    system=system_prompt,
-                    messages=self.conversation
-                )
-
-                ai_text = ""
-                for block in response.content:
-                    if block.type == "text":
-                        ai_text += block.text
-
-            except Exception as e:
-                messagebox.showerror("Client Error", str(e))
-                return ""
-
-        elif self.MyModel.startswith("gemini"):  # Google model
-
-            if self.vw.get() == 1:
-                messagebox.showwarning("Web Search","Web Search is not available with Gemini models here.")
-                self.query.delete("1.0", END)
-                self.display_intro()
-                return ""
-
-            try:
-                client = OpenAI(
-                    api_key=os.environ.get("api_key"),
-                    base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
-                )
-
-                response = client.chat.completions.create(
-                    model=self.MyModel,
-                    messages=self.conversation)
-
-                ai_text = response.choices[0].message.content.strip()
-            except Exception as e:
-                messagebox.showerror("Client Error", str(e))
-                return ""
-
-        elif self.MyModel.endswith("cloud"):  # Ollama cloud model
-            ''' method to access Ollama cloud API '''
-
-            if self.vw.get() == 1:
-                messagebox.showwarning("Web Search","Web Search is not available with these Ollama models.")
-                self.query.delete("1.0", END)
-                self.display_intro()
-                return ""
-
-            client = Client(
-                host='https://ollama.com',
-                headers={
-                    'Authorization': f"Bearer {os.environ.get('OLLAMA_API_KEY')}"
-                }
-            )
-
-            try:
-
-                response = client.chat(
-                    model=self.MyModel,
-                    messages=self.conversation,
-                    stream=True
-                )
-
-                full_response = ""
-                for chunk in response:
-                    content = chunk['message']['content']
-                    full_response += content
-
-                ai_text = full_response
-
-            except Exception as e:
-                wx.MessageBox(str(e), 'Info', wx.OK | wx.ICON_ERROR)
-                return ""
-
-        elif self.MyModel.startswith("groq"):  # GROQ
-            ''' method to access GROQ API '''
-
-            try:
-
-                client = Groq(
-                    # This is the default and can be omitted
-                    api_key=os.environ.get("GROQ_KEY"),
-                    default_headers={
-                        "Groq-Model-Version": "latest"
-                    }
-                )
-
-                chat_completion = client.chat.completions.create(
-                    messages=self.conversation,
-                    model=self.MyModel
-                )
-
-                ai_text = chat_completion.choices[0].message.content
-
-            except Exception as e:
-                wx.MessageBox(str(e), 'Info', wx.OK | wx.ICON_ERROR)
-                return ""
-
-        ### OpenAI ###
-
+        if self.MyModel.startswith("gpt"):
+            ai_text = self.api_gpt()
+        elif self.MyModel.startswith("claude-haiku"):
+            ai_text = self.api_claude_haiku()
+        elif self.MyModel.startswith("claude-sonnet"):
+            ai_text = self.api_claude_sonnet()
+        elif self.MyModel.startswith("claude-opus"):
+            ai_text = self.api_claude_opus()
+        elif self.MyModel.startswith("gemini"):
+            ai_text = self.api_gemini()
+        elif self.MyModel.endswith("cloud"):
+            ai_text = self.api_ollama_cloud()
+        elif self.MyModel.startswith("groq"):
+            ai_text = self.api_groq()
         else:
-            # OpenAI models ...
-            if self.vw.get() == 1:  #  requesting web search tool
-                # print("web search")
-                try:
-                    client = OpenAI(api_key=os.environ.get(self.MyKey))
-                    response = client.responses.create(
-                        model=self.MyModel,
-                        tools=[{"type": "web_search"}],
-                        input=self.conversation
-                    )
-                    ai_text = response.output_text
-                except Exception as e:
-                    ai_text = e
-            else:
-                # regular OpenAI request
-                try:
-                    client = OpenAI(api_key=os.environ.get(self.MyKey))
-                    resp  = client.chat.completions.create(
-                    model = self.MyModel,
-                    messages = self.conversation)
-                    content = resp.choices[0].message.content.strip()
-                    ai_text = content
-                except Exception as e:
-                    ai_text = e
+            ai_text = ""
+
+        if ai_text == "":
+            self.query.delete("1.0", END)
+            self.display_intro()
+            return
+
+        # 3) add the assistant reply to history
+        self.conversation.append(
+            {"role": "assistant", "content": ai_text}
+        )
+
+        # 4) show it
+        self.txt.delete("1.0", END)
+        self.txt.insert("1.0", ai_text)
+        # self.txt.tag_add('all_text', '1.0', 'end-1c')  ///
+        self.after(400, self.highlight)
+        # SAVE conversation to disk
+        self.save_buffer(self.conversation, self.cpath)
+
+        ### append to log ###
+
+        today = strftime("%a %d %b %Y", localtime())
+        tm    = strftime("%H:%M", localtime())
+        atk   = self.get_aprox_tokens(ai_text)
+        with open(self.MyPath, "a", encoding="utf-8") as fout:
+            fout.write("\n\n=== (%s) Chat on %s %s ===\n\n" % (self.MyModel, today, tm))
+            fout.write(query + "\n\n+++ assistant +++\n\n")
+            fout.write(ai_text + "\n")
+            fout.write(f"=== Aprox Tokens: {atk} ===" + "\n\n")
+        # select the input query box
+        self.query.tag_add("sel", "1.0", "end-1c")
+        self.query.focus_set()
 
 
         #############################################################
@@ -819,8 +924,7 @@ class Application(Frame):
 
     def on_editor_open(self, e=None):
         ''' open your text editor  Ctrl-e '''
-        # subprocess.Popen([self.MyEditor, filename])
-        os.system(self.MyEditor)
+        subprocess.Popen([self.MyEditor])
 
     def on_md_render(self, e=None):
         ''' render txt (MD) to html and show window '''
