@@ -236,13 +236,13 @@ class Application(Frame):
         root.bind("<Alt-p>", self.create_window)
         root.bind("<Control-h>", self.on_kb_help)  # show hotkey help
         root.bind("<Control-q>", self.exit_program)  # Close button
-        root.bind("<Control-e>", self.on_editor_open)  # text editor
         root.bind("<Control-g>", self.on_submit)  # Submit Query button
         root.bind("<Control-Return>", self.on_submit)  # Submit Query button
         root.bind("<Control-Shift-S>", self.speak_text)  # speak query response
         root.bind("<Control-Shift-D>", self.delete_log)
         root.bind("<Control-f>", self.find_text)
         root.bind("<Control-n>", self.find_next)
+        root.bind("<Control-e>", self.on_md_open)
         root.bind("<Control-j>", self.open_selected_url)  # open selected URL in browser
         self.query.bind("<Button-3>", self.do_pop_query)
         self.txt.bind("<Button-3>", self.do_pop_txt)
@@ -919,13 +919,9 @@ class Application(Frame):
         filename = os.getcwd() + '/' + self.MyFile
         with open(filename, 'w') as f:
             f.write(text)
-        print(self.MyEditor, filename)
-        # subprocess.Popen([self.MyEditor, filename])
-        os.system(self.MyEditor + " " + filename)
-
-    def on_editor_open(self, e=None):
-        ''' open your text editor  Ctrl-e '''
-        subprocess.Popen([self.MyEditor])
+        # print(self.MyEditor, filename)
+        subprocess.Popen([self.MyEditor, filename])
+        # os.system(self.MyEditor + " " + filename)
 
     def on_md_render(self, e=None):
         ''' render txt (MD) to html and show window '''
@@ -995,7 +991,7 @@ Ctrl-N > Find Next Text
 Ctrl-J > Open Selected URL
 Ctrl-Q > Exit Program no ask
 Ctrl-R > Clear prompt area
-Ctrl-E > Open Text Editor
+Ctrl-E > Open in Text Editor
 Alt-P > Open Prompt Manager
         '''
         messagebox.showinfo("Hot Keys Help", msg)
