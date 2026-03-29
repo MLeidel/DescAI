@@ -323,7 +323,7 @@ class Application(Frame):
         intro = f'''
         Welcome to {apptitle}
             a GUI desktop AI client for conversing with
-            OpenAI, Claude, Gemini, and Ollama's Large Language Models
+            Gpt, Claude, Gemini, Groq, and Ollama's LLMs
 
         Model: {self.MyModel}
         role: {self.MySystem}
@@ -346,6 +346,7 @@ class Application(Frame):
         https://platform.claude.com/dashboard
         https://aistudio.google.com/api-keys
         https://ollama.com/
+        https://console.groq.com/keys
         '''
 
         return intro
