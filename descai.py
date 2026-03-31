@@ -76,7 +76,7 @@ class Application(Frame):
         self.MyVoice    = config['Main']['voice']
         self.MyColor    = config['Main']['color']
         self.MySystem   = config['Main']['system']
-        self.MyTemper   = config['Main']['temper']
+        self.MyTemper   = float(config['Main']['temper'])
         self.MyMd1      = config['Main']['md1']
         self.MyMd2      = config['Main']['md2']
         self.MyMd3      = config['Main']['md3']
@@ -317,13 +317,14 @@ class Application(Frame):
 #----------------------------------------------------------------------
 
     def set_intro(self):
-        ''' A "start" screen providing some information about
-            the current settings of the app.
+        ''' A "start" screen providing helpful information
+            about the app and its settings.
         '''
         intro = f'''
         Welcome to {apptitle}
-            a GUI desktop AI client for conversing with
-            Gpt, Claude, Gemini, Groq, and Ollama's LLMs
+            a GUI desktop AI client to converse with
+            Gpt, Claude, Gemini, Groq,
+            Ollama, and Deepseek LLMs
 
         Model: {self.MyModel}
         role: {self.MySystem}
@@ -347,6 +348,7 @@ class Application(Frame):
         https://aistudio.google.com/api-keys
         https://ollama.com/
         https://console.groq.com/keys
+        https://platform.deepseek.com
         '''
 
         return intro
@@ -646,6 +648,36 @@ class Application(Frame):
 
         return ai_text
 
+    '''
+        ▄             ▌
+        ▌▌█▌█▌▛▌▛▘█▌█▌▙▘
+        ▙▘▙▖▙▖▙▌▄▌▙▖▙▖▛▖
+              ▌
+    '''
+    def api_deepseek(self):
+        '''  '''
+        if self.vw.get() == 1:
+            messagebox.showwarning("Web Search","Web Search is not available with Deepseek")
+            self.query.delete("1.0", END)
+            self.display_intro()
+            return ""
+
+        try:
+            client = OpenAI(api_key=os.environ.get('DSEEK1'), base_url="https://api.deepseek.com")
+            resp  = client.chat.completions.create(
+                model = self.MyModel,
+                temperature = self.MyTemper,
+                messages = self.conversation
+            )
+            content = resp.choices[0].message.content.strip()
+            ai_text = content
+        except Exception as e:
+            messagebox.showerror("Client Error", str(e))
+            ai_text = ""
+
+        return ai_text
+
+
     #################
     ### ON SUBMIT ###
     #################
@@ -688,6 +720,8 @@ class Application(Frame):
             ai_text = self.api_ollama_cloud()
         elif self.MyModel.startswith("groq"):
             ai_text = self.api_groq()
+        elif self.MyModel.startswith("deepseek"):
+            ai_text = self.api_deepseek()
         else:
             ai_text = ""
 
@@ -1219,14 +1253,17 @@ Alt-P > Open Prompt Manager
                 self.query.delete("1.0", END)  # clear the Text widget
                 self.query.insert(1.0, cmb)  # fill the Text widget
 
+        def editor():
+            ''' Launch editor with prompts.txt file '''
+            subprocess.Popen([self.MyEditor, "prompts/prompts.txt"])
 
         # Listbox (read-only, single selection)
         listbox = Listbox(toplevel, height=8)
-        listbox.grid(row=0, column=0, columnspan=3, sticky="nsew", padx=5, pady=5)
+        listbox.grid(row=0, column=0, columnspan=4, sticky="nsew", padx=5, pady=5)
         listbox.bind("<<ListboxSelect>>", item_selected)
 
         txt = Text(toplevel, padx=4, height=5)
-        txt.grid(row=1, column=0, columnspan=3, sticky='nsew', padx=5, pady=5)
+        txt.grid(row=1, column=0, columnspan=4, sticky='nsew', padx=5, pady=5)
 
         # Read items from a text file (one item per line)
 
@@ -1253,13 +1290,15 @@ Alt-P > Open Prompt Manager
             listbox.insert(END, it)
 
         # Buttons 1, 2 (capture selection) and 3 (close)
-        btn1 = Button(toplevel, text="Fill", command=lambda: pick(1), bootstyle=self.MyButtons)
-        btn2 = Button(toplevel, text="Append", command=lambda: pick(2), bootstyle=self.MyButtons)
-        btn3 = Button(toplevel, text="Close", command=toplevel.destroy, bootstyle=self.MyButtons)
+        btn1 = Button(toplevel, text="Fill", command=lambda: pick(1))
+        btn2 = Button(toplevel, text="Append", command=lambda: pick(2))
+        btn3 = Button(toplevel, text="Edit", command=editor)
+        btn4 = Button(toplevel, text="Close", command=toplevel.destroy)
 
         btn1.grid(row=2, column=0, padx=5, pady=5, sticky="ew")
         btn2.grid(row=2, column=1, padx=5, pady=5, sticky="ew")
         btn3.grid(row=2, column=2, padx=5, pady=5, sticky="ew")
+        btn4.grid(row=2, column=3, padx=5, pady=5, sticky="ew")
 
         toplevel.update_idletasks()
         toplevel.geometry("400x350")
