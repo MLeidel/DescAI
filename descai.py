@@ -752,7 +752,7 @@ class Application(Frame):
             fout.write("\n\n=== (%s) Chat on %s %s ===\n\n" % (self.MyModel, today, tm))
             fout.write(query + "\n\n+++ assistant +++\n\n")
             fout.write(ai_text + "\n")
-            fout.write(f"=== Aprox Tokens: {atk} ===" + "\n\n")
+            fout.write(f"\n=== Aprox Tokens: {atk} ===" + "\n\n")
         # select the input query box
         self.query.tag_add("sel", "1.0", "end-1c")
         self.query.focus_set()
@@ -807,8 +807,8 @@ class Application(Frame):
         self.google_new = True  # Gemini API is temporary always
         # check for system message change
         usertext = self.query.get("1.0", END)
-        if usertext.lower().startswith("prompt"):
-            self.MySystem = usertext[7:].strip()
+        if usertext.lower().startswith("instruct"):
+            self.MySystem = usertext[9:].strip()
         # set the system message
         if self.MyModel.startswith("claude"):
             self.conversation = []

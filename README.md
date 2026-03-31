@@ -62,6 +62,7 @@ Here are the vendors, websites, and key labels to use:
 | Google | https://aistudio.google.com | **api_key** |
 | Ollama | https://ollama.com/settings | **OLLAMA_API_KEY** |
 | groq | https://console.groq.com/keys | **GROQ_KEY** |
+| Deepseek | https://platform.deepseek.com | **DSEEK1** |
 
 Windows and Linux have various way to set these variables.
 
@@ -91,8 +92,8 @@ There is a GUI that handles options but can use a text editor also.
 
 - **New**
 > Begins a new conversation  
->>To change the system role message for the current session,  
-type **_prompt You are a .......... assistant_**  
+>>To change the system instructions message for the current session,  
+type **_instruct_ You are a .......... assistant**  
 into the Prompt Area first, and then click "New".
 - **View**
 > Displays the log file you named in Options.
@@ -153,17 +154,17 @@ preserved anywhere, but will remain in the log until it is purged.
 |__Ctrl-N__| Find next text |
 |__Ctrl-J__| Open Selected URL |
 |__Ctrl-R__|Clear Prompt Area|
-|__Alt-P__|Open Prompt Manager|
+|__Alt-P__|Open Prompt Manager (or right-click) |
 
 
 The `prompts` directory is for storing custom prompt text.
 Prompt files must begin with "prompt" and be followed by non-space characters, like `prompt1` or `promptX`.
 You can easily edit your prompt?.md files with a text editor.
 
-In addition, a ___Prompts Manager___ presents named prompts that are created and modified in a file
-called `prompts.txt`.
+In addition, a _Prompts Viewer_ presents named prompts that are created and modified in a file
+called `prompts.txt`. Access the viewer with Alt-P or with the Right-Click drop-down.
 
-![alttext](images/promptsmgr.png "DescAI Prompt Manager")
+![alttext](images/promptsmgr.png "DescAI Prompts Viewer")
 
 ----
 

@@ -18,7 +18,7 @@ Think step-by-step (to yourself)
 [provide steps]
 %%%
 Context
-OS is Linux Debian 13 and xfce4, i9-12900HK
+Target systems: OS Linux Debian 13 and xfce4, i9-12900HK, and Windows 11
 %%%
 Reasons
 Explain your reasoning for [ ? ] 
