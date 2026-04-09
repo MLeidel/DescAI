@@ -1,22 +1,19 @@
 # DescAI
 
 ### a GUI desktop AI client  
->#### Converse with cloud based LLMs 
->##### Openai Google anthropic Ollama Groq
+>#### Converse with cloud and local based LLMs 
+>##### Openai Google anthropic Ollama Groq Deepseek
 
 
 -  Temporary local Chat Mode
 -  Supports a variety of OpenAI models and web-search
--  Supports Claude models and web-search
+-  Supports web-search for some models
 -  Convert responses to HTML or VOICE
 -  Maintains a log of reponses
 -  Simple GUI
 -  Renders HTML from Markdown
 -  Choose from many themes and colors
--  Pop-up Prompt Manager | Options Manager
-
-see https://platform.openai.com for OpenAI model information  
-see https://www.anthropic.com for information on Claude models
+-  Pop-up Prompt Manager and Options Manager
 
 _requires several modules_  
 
@@ -53,7 +50,7 @@ the correct `pip...` syntax.
 
 Also you will need **_API keys_** from each vendor.  
 The vendors offer both free and paid tiers.  
-Here are the vendors, websites, and key labels to use:
+Here are the vendors, websites, and key labels to use in your environment:
 
 | Vendor | Website | ENVariable | 
 | :--- | :--- | :--- |
@@ -65,6 +62,13 @@ Here are the vendors, websites, and key labels to use:
 | Deepseek | https://platform.deepseek.com | **DSEEK1** |
 
 Windows and Linux have various way to set these variables.
+
+### Local Models
+
+Local models are installed using Ollama.  
+Visit the Ollama website for instructions on installing Ollama and downloading local models.
+
+[Ollama website](https://ollama.com "Ollama")
 
 ---
 

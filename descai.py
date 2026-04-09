@@ -2,6 +2,8 @@
 
 '''
 descai.py
+Linux and Windows ONLY
+Apr 2026 - added local models
     by Michael Leidel
 
 Disclaimer: This software is provided free of charge and "as is," without any warranties,
@@ -33,6 +35,7 @@ from ttkbootstrap.tooltip import ToolTip
 from openai import OpenAI
 from google.genai import types
 from ollama import Client
+from ollama import chat
 from groq import Groq
 import anthropic
 import vocvlc
@@ -42,7 +45,7 @@ from google import genai
 from google.genai import types
 
 
-apptitle = "DescAI 1.0 "
+apptitle = "DescAI 1.5 "
 
 class Application(Frame):
     ''' This tkinter GUI app provides a flexible dual vertical pane
@@ -677,6 +680,34 @@ class Application(Frame):
 
         return ai_text
 
+    '''
+        ▄▖▜ ▜          ▖       ▜
+        ▌▌▐ ▐ ▀▌▛▛▌▀▌  ▌ ▛▌▛▘▀▌▐
+        ▙▌▐▖▐▖█▌▌▌▌█▌  ▙▖▙▌▙▖█▌▐▖
+
+    '''
+    def api_ollama_local(self):
+        '''  '''
+        if self.vw.get() == 1:
+            messagebox.showwarning("Web Search","Web Search is not available with these Ollama local.")
+            self.query.delete("1.0", END)
+            self.display_intro()
+            return ""
+
+        try:
+            # remove the "-local" text appended to the model name
+            mymodel = self.MyModel[:-6]
+
+            response = chat(model=mymodel, messages=self.conversation)
+
+            ai_text = response.message.content
+
+        except Exception as e:
+            messagebox.showerror("Client Error", str(e))
+            ai_text = ""
+
+        return ai_text
+
 
     #################
     ### ON SUBMIT ###
@@ -684,7 +715,7 @@ class Application(Frame):
 
     def on_submit(self, event=None):
         ''' Event handler for Submit button (Ctrl-G).
-            Handles OpenAI and Claude APIs '''
+            Handles all the APIs '''
 
         query = self.query.get("1.0", END).strip()
 
@@ -699,6 +730,9 @@ class Application(Frame):
         self.txt.insert("1.0", "Thinking ..." )
         self.txt.update_idletasks()
 
+        # start timer
+        start_time = time.perf_counter()
+
         # add the user message (prompt)
         self.conversation.append(
             {"role": "user", "content": query}
@@ -706,7 +740,9 @@ class Application(Frame):
 
         # call the set chat completion API
 
-        if self.MyModel.startswith("gpt"):
+        if self.MyModel.endswith("-local"):
+            ai_text = self.api_ollama_local()
+        elif self.MyModel.startswith("gpt"):
             ai_text = self.api_gpt()
         elif self.MyModel.startswith("claude-haiku"):
             ai_text = self.api_claude_haiku()
@@ -745,40 +781,12 @@ class Application(Frame):
 
         ### append to log ###
 
-        today = strftime("%a %d %b %Y", localtime())
-        tm    = strftime("%H:%M", localtime())
-        atk   = self.get_aprox_tokens(ai_text)
-        with open(self.MyPath, "a", encoding="utf-8") as fout:
-            fout.write("\n\n=== (%s) Chat on %s %s ===\n\n" % (self.MyModel, today, tm))
-            fout.write(query + "\n\n+++ assistant +++\n\n")
-            fout.write(ai_text + "\n")
-            fout.write(f"\n=== Aprox Tokens: {atk} ===" + "\n\n")
-        # select the input query box
-        self.query.tag_add("sel", "1.0", "end-1c")
-        self.query.focus_set()
-
-
-        #############################################################
-
-        if ai_text == "":
-            self.query.delete("1.0", END)
-            self.display_intro()
-            return
-
-        # 3) add the assistant reply to history
-        self.conversation.append(
-            {"role": "assistant", "content": ai_text}
-        )
-
-
-        # 4) show it
-        self.txt.delete("1.0", END)
-        self.txt.insert("1.0", ai_text)
-        self.after(400, self.highlight)
-        # SAVE conversation to disk
-        self.save_buffer(self.conversation, self.cpath)
-
-        ### append to log ###
+        # calculate time spent
+        end_time = time.perf_counter()
+        elapsed_seconds = end_time - start_time
+        total_seconds = int(round(elapsed_seconds))
+        minutes = total_seconds // 60
+        seconds = total_seconds % 60
 
         today = strftime("%a %d %b %Y", localtime())
         tm    = strftime("%H:%M", localtime())
@@ -787,7 +795,7 @@ class Application(Frame):
             fout.write("\n\n=== (%s) Chat on %s %s ===\n\n" % (self.MyModel, today, tm))
             fout.write(query + "\n\n+++ assistant +++\n\n")
             fout.write(ai_text + "\n")
-            fout.write(f"=== Aprox Tokens: {atk} ===" + "\n\n")
+            fout.write(f"\n====== Aprox Tokens {atk} === Time {minutes}:{seconds} ======" + "\n\n")
         # select the input query box
         self.query.tag_add("sel", "1.0", "end-1c")
         self.query.focus_set()
@@ -818,25 +826,10 @@ class Application(Frame):
             ]
         if os.path.isfile(self.cpath):
             os.remove(self.cpath)
+            messagebox.showinfo("Note", "The text of the previous conversation will remain in the log.")
         self.query.delete("1.0", END)
         self.display_intro()
-        messagebox.showinfo("Note", "Conversation Reset")
         self.query.focus_set()
-
-    def onComboSelect(self, e=None):
-        ''' Selecting different AI model '''
-        # warn of conversation reset
-        result = messagebox.askokcancel("Warning",
-                                        "Conversation will be reset!")
-        if result is not True:
-            self.vcmbo_model.set("")
-            return ""
-
-        self.MyModel = self.vcmbo_model.get()
-        self.MyTitle = apptitle + self.MyModel + " *"
-        # update window caption and information
-        root.title(self.MyTitle)
-        self.new_conversation()  # Note: cannot continue current conversation when switching models.
 
     def on_new(self):
         ''' Event handler for the New button.
@@ -844,14 +837,30 @@ class Application(Frame):
         A new system prompt may be taken from the prompt
         area preceeded by the word `prompt` '''
         root.withdraw()
-        result = messagebox.askokcancel("Chat",
-                                        "Start New Conversation?")
+        result = messagebox.askyesno("Conversations",
+                                        "Start a new conversation?")
         root.deiconify()
         if result is True:
             # start new conversation
             self.new_conversation()
         self.query.focus_set()
 
+    def onComboSelect(self, e=None):
+        ''' Selecting different AI model '''
+        # warn of conversation reset
+        if os.path.isfile(self.cpath):
+            result = messagebox.askyesno("There is an exiting conversation",
+                                            "Start a new conversation?")
+            if result is False:
+                self.vcmbo_model.set("")
+                messagebox.showwarning("Change Model", "Cannot change model in an existing conversation.")
+                return ""
+
+        self.MyModel = self.vcmbo_model.get()
+        self.MyTitle = apptitle + self.MyModel + " *"
+        # update window caption and information
+        root.title(self.MyTitle)
+        self.new_conversation()  #  Note: cannot continue current conversation when switching models.
 
     def load_buffer(self, path):
         ''' Used only for OpenAI and only serves to verify the JSON '''
