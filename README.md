@@ -14,21 +14,30 @@
 -  Renders HTML from Markdown
 -  Choose from many themes and colors
 -  Pop-up Prompt Manager and Options Manager
+-  RAG for .pdf .md .txt documents
 
-_requires several modules_  
+_requires modules_  
 
-        anthropic==0.84.0
-        openai==2.28.0
-        google-genai==1.68.0
-        ollama==0.6.1
-        Markdown==3.10.2
+        anthropic
+        openai
+        google-genai
+        ollama
+        Markdown
         ttkbootstrap==1.14.2
-        groq==1.1.2
+        groq
+        langchain 
+        langchain-community
+        langchain-text-splitters 
+        langchain-ollama 
+        langchain-core
+        faiss-cpu
 
 _Uses Python and tkinter_
 
 >python3  
 >python3-tk
+Ollama (see website to download)
+
 
 aditional requirements:
 
@@ -44,7 +53,7 @@ aditional requirements:
 
 ## Instalation
 
-Use `pip` to install any missing python modules
+Use `pip` or `pip3` to install any missing python modules
 needed for API access. Consult the vendor for
 the correct `pip...` syntax.
 
@@ -61,7 +70,7 @@ Here are the vendors, websites, and key labels to use in your environment:
 | groq | https://console.groq.com/keys | **GROQ_KEY** |
 | Deepseek | https://platform.deepseek.com | **DSEEK1** |
 
-Windows and Linux have various way to set these variables.
+Windows and Linux have their own way to set these variables.
 
 ### Local Models
 
@@ -79,6 +88,53 @@ If you plan to use Voice reading of responses, you will need to install VLC medi
 Use Ctrl-Shift-S to play back the reponses.
 
 Each play-back is saved in a separate file in the application directory.
+
+---
+
+## Models File `models.dat`
+
+        gemma4:e2b-local
+        gemma4:e4b-local
+        groq/compound
+        gpt-5.4-mini
+        gpt-5.4-nano
+        gpt-5-mini
+        gpt-5-nano
+        gemini-3.1-flash-lite-preview
+        gemini-2.5-flash-lite
+        gemini-2.5-flash
+        gemini-2.5-pro
+        claude-haiku-4-5
+        claude-sonnet-4-6
+        claude-opus-4-6
+        gpt-4.1-mini
+        gpt-4.1-nano
+        gpt-4o-mini
+        gpt-5
+        gpt-5.4
+        qwen3-coder:480b-cloud
+        qwen3.5:397b-cloud
+        deepseek-chat
+        deepseek-reasoner
+        rag_deepseek-r1:8b
+        rag_gemma4:e4b
+        rag_gemma4:e2b
+
+Note:
+    for local models obtained from Ollama append the model name with `-local`
+    Only Ollama local models are used with RAG. Prepend those with `rag-`
+    Modify this file for only the models you use.
+
+---
+
+## RAG
+
+Workflow is slightly different for RAG. 
+
+1. select the rag-_model_ to use
+2. You are prompted to locate the directory containing your documents
+3. Wait while the documents are converted and built into the vector database
+4. prompt, get results, logging all the same as none RAG process.
 
 ---
 

@@ -21,3 +21,6 @@ qwen3-coder:480b-cloud
 qwen3.5:397b-cloud
 deepseek-chat
 deepseek-reasoner
+rag_deepseek-r1:8b
+rag_gemma4:e4b
+rag_gemma4:e2b

@@ -88,7 +88,7 @@ class Application(Frame):
         ent_path.grid(row=2, column=2, sticky='w', pady=4, padx=4)
 
         self.vent_fqfam = StringVar()
-        ent_fqfam = Entry(self, textvariable=self.vent_fqfam, width=12)
+        ent_fqfam = Entry(self, textvariable=self.vent_fqfam, width=20)
         ent_fqfam.grid(row=3, column=2, sticky='w', pady=4, padx=4)
 
         self.vent_fqsiz = StringVar()
@@ -96,7 +96,7 @@ class Application(Frame):
         ent_fqsiz.grid(row=4, column=2, sticky='w', pady=4, padx=4)
 
         self.vent_fgfam = StringVar()
-        ent_fgfam = Entry(self, textvariable=self.vent_fgfam, width=12)
+        ent_fgfam = Entry(self, textvariable=self.vent_fgfam, width=20)
         ent_fgfam.grid(row=5, column=2, sticky='w', pady=4, padx=4)
 
         self.vent_fgsiz = StringVar()
@@ -149,15 +149,15 @@ class Application(Frame):
         ent_size.grid(row=13, column=2, sticky='w', pady=4, padx=4)
 
         self.vent_edit = StringVar()
-        ent_edit = Entry(self, textvariable=self.vent_edit)
+        ent_edit = Entry(self, textvariable=self.vent_edit, width=30)
         ent_edit.grid(row=14, column=2, sticky='w', pady=4, padx=4)
 
         self.vent_file = StringVar()
-        end_file = Entry(self, textvariable=self.vent_file)
+        end_file = Entry(self, textvariable=self.vent_file, width=30)
         end_file.grid(row=15, column=2, sticky='w', pady=4, padx=4)
 
         self.vent_role = StringVar()
-        ent_role = Entry(self, textvariable=self.vent_role, width=32)
+        ent_role = Entry(self, textvariable=self.vent_role, width=30)
         ent_role.grid(row=16, column=2, sticky='w', pady=4, padx=4)
 
         # RIGHT SIDE
