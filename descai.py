@@ -193,7 +193,7 @@ class Application(Frame):
         self.web.grid(row=1, column=10, sticky='w', pady=(5, 0), padx=(5, 5))
 
         self.vcmbo_model = StringVar()
-        self.cmbo_model = Combobox(btn_frame, textvariable=self.vcmbo_model, width=18, state="readonly")
+        self.cmbo_model = Combobox(btn_frame, textvariable=self.vcmbo_model, width=20, state="readonly")
         self.cmbo_model['values'] = self.MyModels
         self.cmbo_model.grid(row=1, column=11, sticky='w', pady=(5, 0), padx=(5, 5))
         self.cmbo_model.bind('<<ComboboxSelected>>', self.onComboSelect)
@@ -776,6 +776,8 @@ class Application(Frame):
         ''' Event handler for Submit button (Ctrl-G).
             Handles all the APIs '''
 
+        self.copy_all(self.query)  # as backup measure for prompt text
+
         query = self.query.get("1.0", END).strip()
 
         # show prompt.md document
@@ -1105,6 +1107,18 @@ Alt-P > Open Prompt Manager
         '''
         messagebox.showinfo("Hot Keys Help", msg)
 
+    def copy_all(self, panel):
+        ''' helper function '''
+        panel.focus()
+        panel.tag_add(SEL, '1.0', END)
+        panel.mark_set(INSERT, '1.0')
+        panel.see(INSERT)
+        root.clipboard_clear()  # clear clipboard contents
+        if panel.tag_ranges("sel"):  # append new value to clipbaord
+            root.clipboard_append(panel.selection_get())
+            panel.tag_remove(SEL, "1.0", END)
+
+
 
     def do_pop_query(self, event):
         ''' handles right-click for context menu '''
@@ -1170,14 +1184,7 @@ Alt-P > Open Prompt Manager
             except Exception as e:
                 return
         elif n == 3:  # Copy All
-            self.query.focus()
-            self.query.tag_add(SEL, '1.0', END)
-            self.query.mark_set(INSERT, '1.0')
-            self.query.see(INSERT)
-            root.clipboard_clear()  # clear clipboard contents
-            if self.query.tag_ranges("sel"):  # append new value to clipbaord
-                root.clipboard_append(self.query.selection_get())
-                self.query.tag_remove(SEL, "1.0", END)
+            self.copy_all(self.query)
         elif n == 4:  # Prompt Manager
             self.create_window(None)
         elif n == 5:  # clear prompt text area
@@ -1192,14 +1199,7 @@ Alt-P > Open Prompt Manager
             inx = self.txt.index(INSERT)
             self.txt.insert(inx, root.clipboard_get())
         elif n == 3:  # Select All
-            self.txt.focus()
-            self.txt.tag_add(SEL, '1.0', END)
-            self.txt.mark_set(INSERT, '1.0')
-            self.txt.see(INSERT)
-            root.clipboard_clear()  # clear clipboard contents
-            if self.txt.tag_ranges("sel"):  # append new value to clipbaord
-                root.clipboard_append(self.txt.selection_get())
-                self.txt.tag_remove(SEL, "1.0", END)
+            self.copy_all(self.txt)
         elif n == 4:   # search for selected text using browser
             search = self.txt.selection_get()
             if len(search) > 2:
