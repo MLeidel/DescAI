@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 '''
-descai.py
+deskchat.py
 Linux and Windows ONLY
 Apr 2026 - added local models
     by Michael Leidel
@@ -45,7 +45,7 @@ from google import genai
 from google.genai import types
 
 
-apptitle = "DescAI 2.0 "
+apptitle = "deskchat 2.0 "
 
 class Application(Frame):
     ''' This tkinter GUI app provides a flexible dual vertical pane
@@ -346,7 +346,7 @@ class Application(Frame):
 
         Registered API keys are required to be set
         as system environment variables.
-        See https://github.com/MLeidel/DescAI for details.
+        See https://github.com/MLeidel/deskchat for details.
 
         https://auth.openai.com/log-in
         https://platform.claude.com/dashboard
@@ -1360,7 +1360,7 @@ Alt-P > Open Prompt Manager
             save_location()
             sys.exit()
         if e is None:  # ctrl-q avoids this message
-            if messagebox.askokcancel('DescAI',
+            if messagebox.askokcancel('deskchat',
                                       'Confirm Exit app?') is False:
                 return
         save_location()

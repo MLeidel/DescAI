@@ -1,16 +1,27 @@
 [
     {
-        "name": "Test prompt 2",
-        "text": "This text is for testing.\nAsk if there are any questions.\nadded this to the prompt detail.",
+        "name": "Gemini RAG",
+        "text": "**The 48-Hour Safety Net:** If you have simply \"lost track\" of the files, remember that **Google automatically purges them after 48 hours.** If you are not in a rush to free up space, simply waiting 2 days will perform the cleanup for you.",
         "tags": [
-            "testing"
+            "info",
+            "RAG",
+            "Google"
         ]
     },
     {
-        "name": "Second prompt",
-        "text": "For testing.\nAI rewrote this program much better than I had it.\nAdded all the features I was intending to add.",
+        "name": "Rename DescAI",
+        "text": "NexusAI\nOmniChat\nDeskChat AI\nDeskSage",
         "tags": [
-            "testing"
+            "info",
+            "notes"
+        ]
+    },
+    {
+        "name": "OpenAI RAG",
+        "text": "Does OpenAI (gpt...) have an API to upload document(s) to use in a simple RAG operation?\n\nI've implemented Google's gemini File RAG which works nicely. I currently have working code for OpenAI's straight-language-only conversational API.",
+        "tags": [
+            "prompt",
+            "RAG"
         ]
     }
 ]

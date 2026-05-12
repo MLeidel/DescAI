@@ -109,7 +109,7 @@ class Application(Frame):
 
         # ent_model.current(0)
         cmbo_model.grid(row=7, column=2, sticky='w', pady=4, padx=4)
-        cmbo_model.bind('<<ComboboxSelected>>', self.onComboSelect)
+        # cmbo_model.bind('<<ComboboxSelected>>', self.onComboSelect)
 
         self.vent_btncolor = StringVar()
         ent_btncolor = Combobox(self, textvariable=self.vent_btncolor, width=10)
@@ -231,14 +231,6 @@ class Application(Frame):
         self.vent_fgfam.set(f.cget("family"))
         self.vent_fgsiz.set(str(f.cget("size")))
 
-    def onComboSelect(self, e):
-        ''' pre set the tokens field for model '''
-        tok = self.vcmbo_model.get()
-        if tok == "gpt-3.5-turbo" :
-            self.vent_token.set("4097")
-        elif tok == "gpt-3.5-turbo-16k" :
-            self.vent_token.set("16385")
-
     def on_close(self):
         ''' Save to options.ini and close the window '''
         config['Main']['fontqryfam'] = self.vent_fqfam.get()
@@ -285,7 +277,7 @@ with open("models.dat", 'r', encoding='utf-8') as f:
 p = os.path.realpath(__file__)
 os.chdir(os.path.dirname(p))
 
-root = Window("DescAI Options", MyTheme)
+root = Window("deskchat Options", MyTheme)
 
 Sizegrip(root).place(rely=1.0, relx=1.0, x=0, y=0, anchor='se')
 root.resizable(0, 0) # no resize & removes maximize button
